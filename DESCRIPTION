@@ -1,11 +1,24 @@
 Package: ukheEm
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Title: Estimate Mixture Models on Wage and Education Data
+Version: 0.0.0.1
+Authors@R: person("Oliver", "Cassagneau-Francis", 
+                  email  = "ollie.francis@gmail.com",
+                  role = c("aut", "cre"))
+URL: https://github.com/opmc/ukheEm
+Description: This package contains an implementation of the EM algorithm to 
+    estimate a mixture model on longitudinal data containing information on 
+    wages and education. The package also contains UK data in the correct 
+    format and tools for analysing the data. 
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
+Imports: 
+    data.table,
+    ggplot2,
+    Hmisc
+RoxygenNote: 7.1.1
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
