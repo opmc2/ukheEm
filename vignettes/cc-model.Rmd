@@ -1,0 +1,20 @@
+---
+title: "The cross-cohort model"
+author: "Oliver Cassagneau-Francis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The cross-cohort model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding[utf8]{inputenc}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(ukheEm)
+```
