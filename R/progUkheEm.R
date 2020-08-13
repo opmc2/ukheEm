@@ -202,6 +202,10 @@ progUkheEm <- function(
 
     # update pk
     dtLong[, pk := likelihoodK / likelihood]
+    if (anyNA(dtLong$pk)) {
+      dtLong[is.na(pk), pk := 0]
+      print("Some pk were NaN. Replaced by zero.")
+    }
 
     # increase iter by 1
     iter <- iter + 1
@@ -210,6 +214,8 @@ progUkheEm <- function(
   }
 
   return(
-    list(listLoglike = listLoglike, listParams = listParams, dtLong = dtLong)
+    list(listLoglike = listLoglike,
+         listParams = listParams,
+         dtLong = dtLong)
   )
 }
