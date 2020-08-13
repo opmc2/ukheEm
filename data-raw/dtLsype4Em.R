@@ -50,4 +50,7 @@ dtLsype4Em <- dtLsypeNoMissing[!is.na(y1) & !is.na(y2) & is.finite(y1) &
                                  is.finite(y2)]
 
 # save to /data
-use_data(dtLsype4Em)
+use_data(dtLsype4Em, overwrite = TRUE)
+
+# save as .rds to \data to use in examples and functions
+saveRDS(dtLsype4Em, file = here("data/dtLsype4Em.rds"))
