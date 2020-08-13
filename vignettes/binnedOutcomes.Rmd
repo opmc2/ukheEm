@@ -25,7 +25,7 @@ In its most basic form, the version of the EM algorithm implemented in `progUkhe
 - an instrument affecting treatment probability but not outcomes
 - a indicator for treatment.
 
-The identification proof, however, does not need the outcomes to be continuous. This is a computing restriction. As outcomes are often wages, and wage data are often censored to some degree in surveys, here I discuss how to format binned outcome data to work with `progUkheEm`. Note that this can be tiresome if the bins are not uniform. 
+The identification proof, however, does not need the outcomes to be continuous. This is a computing restriction. As outcomes are often wages, and wage data are often censored to some degree in surveys, here I discuss how to format binned outcome data to work with `progUkheEm`. Note that this can be tiresome if the bins/intervals are not uniform. 
 
 We will use data from the BCS1970 survey, that contains income data in bins. Let's first load the data.
 
@@ -38,4 +38,104 @@ Then take a look at the first few rows, using `head`:
 head(binnedDataExample)
 ```
 
-We can see the first column, `id`, contains unique identifiers and the second column (handily named `binnedData`) contains our income in bins. 
+We can see the first column, `id`, contains unique identifiers and the second column (handily named `binnedData`) contains the binned income data. To use `progUkheEm` with binned data, we need to add two new variables for each observation: 
+
+- a variable named `left` with the lower bound of the interval in which the true value lies
+- a variable named `right` with the upper bound of the bin.
+
+There are a number of ways to implement this. Perhaps the most straightforward is to implement this manually for each bin, which I demonstrate first. I will also show a way to automate this process for this data.
+
+## Manually defining lower and upper bounds for each bin
+
+First we define the variable containing the lower bound, named `left`. We use the `data.table` function `fcase`, and manually assign the value of the lower bound of the interval to `left` for each observation. The variable `binnedData` actually contain two intervals, corresponding to weekly and annual wages. We choose to use the weekly values.
+
+```{r define lower bound}
+binnedDataExample[, left := fcase(
+  binnedData == "<50    pw/Under 2600 pa", 1,
+  binnedData == "50-99  pw/2600-5199  pa", 50,
+  binnedData == "100-149pw/5200-7799  pa", 100,
+  binnedData == "150-199pw/7800-10399 pa", 150,
+  binnedData == "200-249pw/10400-12999pa", 200,
+  binnedData == "250-299pw/13000-15599pa", 250,
+  binnedData == "300-349pw/15600-18199pa", 300,
+  binnedData == "350-399pw/18200-20799pa", 350,
+  binnedData == "400-449pw/20800-23399pa", 400,
+  binnedData == "450-499pw/23400-25999pa", 450,
+  binnedData == "500&over /26000&over", 500
+)]
+
+head(binnedDataExample)
+```
+
+Next we define the upper bound, `right`, in exactly the same way. 
+
+```{r define upper bound}
+binnedDataExample[, right := fcase(
+  binnedData == "<50    pw/Under 2600 pa", 50,
+  binnedData == "50-99  pw/2600-5199  pa", 99,
+  binnedData == "100-149pw/5200-7799  pa", 149,
+  binnedData == "150-199pw/7800-10399 pa", 199,
+  binnedData == "200-249pw/10400-12999pa", 249,
+  binnedData == "250-299pw/13000-15599pa", 299,
+  binnedData == "300-349pw/15600-18199pa", 349,
+  binnedData == "350-399pw/18200-20799pa", 399,
+  binnedData == "400-449pw/20800-23399pa", 449,
+  binnedData == "450-499pw/23400-25999pa", 499,
+  binnedData == "500&over /26000&over", 600
+)]
+
+head(binnedDataExample)
+```
+
+## Automating assignment of lower and upper
+
+Here I present a method of automating the definitions of `left` and `right` from the binned data. The exact code will depend on the form the intervals/bins are recorded in.
+
+First we need to isolate the key information from the variable identifying the bin/interval. Here it is the part of the string preceding the "/" that defines the interval for weekly wages. The variable containing the intervals are recorded as factors. 
+
+```{r extract key info on interval}
+# first rename manual variables
+setnames(binnedDataExample, 
+         old = c("left", "right"), 
+         new = paste0(c("left", "right"), "_man"))
+
+# check type of binnedData
+binnedDataExample[, is.factor(binnedData)]
+
+# extract levels
+binnedData_levels <- binnedDataExample[, levels(binnedData)]
+
+# select relevant info from string
+keyInfo <- unlist(stringr::str_split_fixed(binnedData_levels, "/", n = 2))[, 1]
+```
+
+We now have the relevant information stored in `keyInfo`. We now want to extract the upper and lower bound to separate variables. We will use 
+
+```{r }
+lower <- c(
+  1, stringr::str_extract_all(keyInfo, "[0-9]{2,}", simplify = TRUE)[2:13, 1]
+)
+upper <- c(
+  50, 
+  stringr::str_extract_all(keyInfo, "[0-9]{2,}", simplify = TRUE)[2:10, 2],
+  3000
+)
+```
+
+Assign `left` and `right`.
+
+```{r assign left and right}
+binnedDataExample[, ':='(
+  left = lower[as.numeric(binnedData)],
+  right = upper[as.numeric(binnedData)]
+)]
+
+head(binnedDataExample)
+```
+
+We can check that the manually assigned and automated variables are the same:
+```{r check man and auto agree}
+binnedDataExample[, all.equal(left_man, left)]
+
+binnedDataExample[, all.equal(right_man, right)]
+```
