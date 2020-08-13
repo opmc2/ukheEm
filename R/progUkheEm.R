@@ -56,7 +56,6 @@
 #'     including the final parameters and intermediate values.}
 #' }
 # #' @example examples/progUkheEm_ex1.R
-#' @import data.table
 progUkheEm <- function(
   dt, K, varList,
   startVals = "kmeans",
