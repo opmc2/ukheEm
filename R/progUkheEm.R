@@ -176,7 +176,7 @@ progUkheEm <- function(
              (pnorm(right, mean = mu, sd = sigmaNu) - pnorm(left, mean = mu, sd = sigmaNu)) *
              (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
 
-    # sum likelihoodK to give likelihood
+    # sum likelihood|K to give likelihood
     dtLong[, likelihood := sum(likelihoodK), by = bcsid]
 
     # save parameters and likelihoods
