@@ -1,0 +1,43 @@
+---
+title: "An initial analysis of the data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{initialAnalysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+# devtools::load_all()
+```
+
+This vignette documents the "reduced-form" analysis that the EM algorithm developed in this package is designed to augment. Slides are available on my [website](https://opmc2.github.io/project/ukheexp/). I will briefly summarise the content of the slides here, though I focus on the production of results and  corresponding plots in this vignette. I also use a different subsample to the slides.
+
+# Research questions
+
+- How important are earnings expectations for 16-18 year olds when deciding whether to go to university?
+- How have these factors changed between the 1980s and today?
+- What is driving the SES-gap in education attainment?
+
+# Summary of what I do
+
+- Model the (binary) decision to continue to university
+- Estimate model separately for cohorts born in 1970 and 1990
+  - Schooling, background, and subjective data from before decision
+  - Earnings and occupation data after entry to labour market
+  - Exploit subjective data on students’ attitudes and lifestyles at 16 to 
+  better capture non-earnings factors
+- Exploit model structure to give distributions of factors in decision
+  - Compare distributions of earnings vs other factors within cohorts
+  - Compare relative importance of factors across cohorts
+  - Compare distributions for different demographics
+- Use subjective data to decompose “psychic costs”
+  - In progress
