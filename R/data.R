@@ -134,3 +134,17 @@
 #' }
 #' @source See \code{lsype1YP} and \code{lsype1FB}.
 "dtLsype4Em"
+
+#' Example data to demonstrate how to deal with binned outcome data
+#'
+#' A simplified dataset containing only binned income data (\code{binnedDate})
+#' and an \code{id} variable to use in a demonstration of formatting binned data
+#' to work with \code{progUkheEm}.
+#'
+#' @format A data.table of 2,614 rows and 2 variables:
+#' \describe{
+#'   \item{\code{id}}{A unique identifier for each observation}
+#'   \item{\code{binnedData}}{Income data in bins}
+#' }
+#' @source See \code{bcs70}.
+"binnedDataExample"
