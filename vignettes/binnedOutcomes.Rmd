@@ -81,7 +81,7 @@ binnedDataExample[, right := fcase(
   binnedData == "350-399pw/18200-20799pa", 399,
   binnedData == "400-449pw/20800-23399pa", 449,
   binnedData == "450-499pw/23400-25999pa", 499,
-  binnedData == "500&over /26000&over", 600
+  binnedData == "500&over /26000&over", 1500
 )]
 
 head(binnedDataExample)
@@ -109,16 +109,21 @@ binnedData_levels <- binnedDataExample[, levels(binnedData)]
 keyInfo <- unlist(stringr::str_split_fixed(binnedData_levels, "/", n = 2))[, 1]
 ```
 
-We now have the relevant information stored in `keyInfo`. We now want to extract the upper and lower bound to separate variables. We will use 
+We now have the relevant information stored in `keyInfo`. We now want to extract the upper and lower bound to separate variables. We will use `str_extract_all` from the `stringr` package and regular expressions.
 
 ```{r }
 lower <- c(
-  1, stringr::str_extract_all(keyInfo, "[0-9]{2,}", simplify = TRUE)[2:13, 1]
+  1, 
+  as.numeric(stringr::str_extract_all(keyInfo, 
+                                      "[0-9]{2,}", 
+                                      simplify = TRUE)[2:13, 1])
 )
 upper <- c(
   50, 
-  stringr::str_extract_all(keyInfo, "[0-9]{2,}", simplify = TRUE)[2:10, 2],
-  3000
+  as.numeric(stringr::str_extract_all(keyInfo, 
+                                      "[0-9]{2,}", 
+                                      simplify = TRUE)[2:10, 2]),
+  1500
 )
 ```
 
