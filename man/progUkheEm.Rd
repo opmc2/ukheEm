@@ -4,14 +4,30 @@
 \alias{progUkheEm}
 \title{EM algorithm on wage and education data}
 \usage{
-progUkheEm(dt, K, startVals = "kmeans", maxiter = 400, y1cont = T)
+progUkheEm(dt, K, varList, startVals = "kmeans", maxiter = 400, y1cont = T)
 }
 \arguments{
-\item{dt}{A data.table containing the wage and education data. The outcomes
-columns containing the outcomes should be named \code{yp} for the before
-treatment outcome, and \code{yw} for the post-treatment.}
+\item{dt}{Either
+\itemize{
+  \item the path to a data.table containing the wage and education
+    data. The data.table should have been saved as a
+    \code{.rds} file using \code{saveRDS}, or
+  \item a data.table containing the wage and education
+    data.
+}
+The columns containing the outcomes should be supplied as a named
+vector in \code{varList}.}
 
 \item{K}{An integer corresponding to the number of types.}
+
+\item{varList}{A named vector of the key variables in the model. The names
+should be:
+\itemize{
+  \item \code{y1}: the pre-treatment outcome
+  \item \code{y2}: the post-treatment outcome (log-wages)
+  \item \code{z}: the instrument
+  \item \code{d}: the treatment (university here)
+}}
 
 \item{startVals}{Either a character vector to use \code{kmeans()} or a vector
 of starting values for the algorithm.}
@@ -20,7 +36,24 @@ of starting values for the algorithm.}
 stopping.}
 
 \item{y1cont}{A logical value indicating whether the first outcome is
-continuous. If not a special ML routine is used.}
+continuous. If \code{y1cont} is set to \code{FALSE}, a special ML routine
+is used, and the data.table \code{dt} \strong{must} contain two extra
+columns, \code{left} and \code{right}:
+\itemize{
+  \item the lower bound of the interval containing \code{y1} (\code{left})
+  \item the upper bound of the interval containing \code{y1} (\code{right})
+}}
+}
+\value{
+Returns a named list containing:
+\describe{
+  \item{\code{listLoglike}}{A list containing the log-likelihood after each
+    iteration for analysing convergence.}
+  \item{\code{listParams}}{A list containing the parameters after each
+    iteration for analysing convergence.}
+  \item{\code{dtLong}}{The final data.table where calculations took place
+    including the final parameters and intermediate values.}
+}
 }
 \description{
 This is the main function which takes data and other parameters and estimates
