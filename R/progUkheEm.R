@@ -116,9 +116,9 @@ progUkheEm <- function(
     # update mu and sigmaNu
 
     if (isTRUE(y1cont)) {
-      dtLong[, c("mu", "sigmaNu") := .(Hmisc::wtd.mean(yp, pk),
-                                       sqrt(Hmisc::wtd.var(yp, pk))),
-             by = .(type, degree)]
+      dtLong[, c("mu", "sigmaNu") := .(Hmisc::wtd.mean(y1, pk),
+                                       sqrt(Hmisc::wtd.var(y1, pk))),
+             by = .(type, d)]
     } else {
       muSigmaRes <- list()
       for (k in 1:K) {
@@ -136,18 +136,18 @@ progUkheEm <- function(
     # update alpha and sigmaEps
 
     dtLong[, c("alpha", "sigmaEps") := .(
-      ifelse(is.na(Hmisc::wtd.mean(yw, pk)), alpha, Hmisc::wtd.mean(yw, pk)),
-      ifelse(is.na(sqrt(Hmisc::wtd.var(yw, pk))),
+      ifelse(is.na(Hmisc::wtd.mean(y2, pk)), alpha, Hmisc::wtd.mean(y2, pk)),
+      ifelse(is.na(sqrt(Hmisc::wtd.var(y2, pk))),
              sigmaEps,
-             sqrt(Hmisc::wtd.mean(yw, pk)))),
-      by = .(type, degree)]
+             sqrt(Hmisc::wtd.mean(y2, pk)))),
+      by = .(type, d)]
 
 
 
     # update bk and gamma
 
     modelS <- glm(
-      formula = degree ~ type + attSchl - 1,
+      formula = d ~ type + z - 1,
       family = binomial(link = "logit"),
       data = dtLong,
       weights = pk
@@ -159,8 +159,8 @@ progUkheEm <- function(
       dtLong[type == paste0(k), bk := coeffS[paste0("type", k)]]
     }
 
-    for (val in levels(dtLong[, attSchl])) {
-      dtLong[attSchl == val, gamma := coeffS[paste0("attSchl", val)]]
+    for (val in levels(dtLong[, z])) {
+      dtLong[z == val, gamma := coeffS[paste0("z", val)]]
     }
     dtLong[is.na(gamma), gamma := 0]
 
@@ -168,13 +168,13 @@ progUkheEm <- function(
 
     # update pi(k,z)
 
-    dtLong[, pi_kz := sum(pk) / NN, by = .(type, attSchl)]
+    dtLong[, pi_kz := sum(pk) / NN, by = .(type, z)]
 
 
     # update likelihood|K
     dtLong[, likelihoodK := pi_kz * Ps1_kz *
              (pnorm(right, mean = mu, sd = sigmaNu) - pnorm(left, mean = mu, sd = sigmaNu)) *
-             (1 / exp(yw)) * dnorm(yw, mean = alpha, sd = sigmaEps)]
+             (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
 
     # sum likelihoodK to give likelihood
     dtLong[, likelihood := sum(likelihoodK), by = bcsid]
@@ -188,7 +188,7 @@ progUkheEm <- function(
       pi_kz = mean(pi_kz),
       bk = mean(bk),
       gamma = mean(gamma)
-    ), by = .(type, degree, attSchl)]
+    ), by = .(type, d, z)]
 
     listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
     listLoglike[[iter]] <- dtLong[type == "1", sum(log(likelihood))]
