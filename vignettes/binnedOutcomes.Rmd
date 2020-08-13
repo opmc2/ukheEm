@@ -1,0 +1,41 @@
+---
+title: "Dealing with binned outcome data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Dealing with binned outcome data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+devtools::load_all()
+```
+
+In its most basic form, the version of the EM algorithm implemented in `progUkheEM` requires the following:
+
+- a continuous outcome from *before* treatment
+- a continuous outcome from *after* treatment
+- an instrument affecting treatment probability but not outcomes
+- a indicator for treatment.
+
+The identification proof, however, does not need the outcomes to be continuous. This is a computing restriction. As outcomes are often wages, and wage data are often censored to some degree in surveys, here I discuss how to format binned outcome data to work with `progUkheEm`. Note that this can be tiresome if the bins are not uniform. 
+
+We will use data from the BCS1970 survey, that contains income data in bins. Let's first load the data.
+
+```{r load data}
+data("binnedDataExample")
+```
+
+Then take a look at the first few rows, using `head`:
+```{r call head}
+head(binnedDataExample)
+```
+
+We can see the first column, `id`, contains unique identifiers and the second column (handily named `binnedData`) contains our income in bins. 
