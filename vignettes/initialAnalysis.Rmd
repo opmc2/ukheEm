@@ -1,10 +1,11 @@
 ---
-title: "An initial analysis of the data"
+title: "Who goes to university and why? A comparison across cohorts (1985 -- 2015)"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{initialAnalysis}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+bibliography: ukhe.bib
 ---
 
 ```{r, include = FALSE}
@@ -14,12 +15,12 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, eval=FALSE}
 # library(ukheEm)
-# devtools::load_all()
+devtools::load_all()
 ```
 
-This vignette documents the "reduced-form" analysis that the EM algorithm developed in this package is designed to augment. Slides are available on my [website](https://opmc2.github.io/project/ukheexp/). I will briefly summarise the content of the slides here, though I focus on the production of results and  corresponding plots in this vignette. I also use a different subsample to the slides.
+This vignette documents the analysis that forms a companion paper to the one which uses the EM algorithm developed in this package. The two papers use the same datasets, and so share some of the preliminary analysis. I would also like to use the EM algorithm in the framework of that paper, and I document how to do that here. Slides are available on my [website](https://opmc2.github.io/project/ukheexp/). I will briefly summarise the content of the slides here, though I focus on the production of the plots (in the context and results sections) in this vignette. I also use a different subsample to the slides.
 
 # Research questions
 
@@ -39,5 +40,131 @@ This vignette documents the "reduced-form" analysis that the EM algorithm develo
   - Compare distributions of earnings vs other factors within cohorts
   - Compare relative importance of factors across cohorts
   - Compare distributions for different demographics
-- Use subjective data to decompose “psychic costs”
+- Use subjective data to decompose "psychic costs"
   - In progress
+  
+# Background and context
+
+In this section of the paper I document some key facts about the UK higher education system. 
+The first two plots are from a paper by @blundell_uk_2018, and show how the growth in educational attainment and the college wage premium has evolved in the US and the UK. 
+
+![](fig/blundell2016BAratio.png){#id .class width=100%}
+
+![](fig/blundell2016WagRatio.png){#id .class width=100%}
+
+I recreate the plots (for the UK) of @blundell_uk_2018 using UK longitudinal cohort studies, which allows me to redo their analysis for different groups. I focus on splitting the sample by parental earnings. The three cohort studies are:
+
+- NCDS: cohort born in 1958
+- BCS: cohort born in 1970
+- LSYPE1: cohort born in 1989/1990
+
+@blundell_uk_2018 used the UK Labour Force Survey (LFS) as their UK data source.
+ 
+# (Cross-cohort) model 
+
+## Features of the cross-cohort model
+
+The cross-cohort model assumes that individuals are *myopic*, only caring about earnings up to their mid-20s when making decisions about their career and education.
+This key assumption enables us to use the limited data available for the 1990 cohort, for whom we only have information up to their mid-twenties.^[The next round of interviews for this cohort is scheduled for 2021, so additional data should be forthcoming.]
+
+### Wages
+
+By assuming myopic potential students, we need only model wages up to the age of 25 or 26.
+The basic model assumes that earnings at 25 are a sufficient statistic for the *present value of discounted earnings* from entry to the labour market until this age, conditional choice of education (HE or not).^[What does this imply about the process of earnings?]
+The logarithm of earnings at 25, conditional on choosing education level $s$, is linear in a permanent productivity term ($\alpha$), observable controls ($X$), and a white-noise error term ($\varepsilon$ what does this represent?):
+$$
+\ln w_{i}(s) = \alpha(s) + X_i \beta(s) + \varepsilon_{i}(s).
+$$
+The error follows a Gaussian distribution with mean zero and variance $\sigma^2_\varepsilon$.
+
+### Values of higher education and direct entry to the labour market.
+
+For someone who attends (and completes) university^[The completion rate in the UK is greater than 90 percent, so we will ignore those who do not complete their degree.] their utility for the period between the ages of 18 and 25 is a (linear) function of their earnings over this period net of any financial costs (e.g. tuition fee repayments), and the consumption value they derive from attending university and working. 
+The alternative to university is direct entry the labour market at 18 (I need to decide whether I restrict the sample to only those who do A-levels or if the age of entry can vary).
+These individuals also derive utility from their wage at 25, and also a direct consumption value from working.
+Therefore, we write
+$$
+	V_{s} = \ln{w_{i}(s)} + c(Z_i,s), \quad \forall \, s = 0, 1.
+$$
+where $c(Z_i, s) = Z_i'\gamma_s + c(s)$, a linear function of $i$'s (observable) characteristics $Z_i$ and an unobserved component. 
+We denote by $s = 1$ the value of attending university and by $s = 0$ the value of direct entry to the labour market.
+
+## The decision to attend university.
+
+A potential student chooses to attend university if their expected value of attending exceeds their expected value of direct entry to the labour market. 
+We write
+$$
+	S = 1 \text{ if } \mathbb{E} V_1 > \mathbb{E} V_0; \; S = 0 \text{ otherwise.}
+$$
+Note that this is the generalised-Roy model of (for example), and can be reformulated in the notation of that literature:
+$$
+	S = 1 \text{ if } Y_1 - Y_0 > C; \; S = 0 \text{ otherwise,} 
+$$
+where $Y_s = \mathbb{E} \ln{w_i(s)}$ and $C = c(Z_i, 1) - c(Z_i, 0)$.
+
+# Data: the BCS1970 and LSYPE surveys
+
+The main data sources are longitudinal surveys of two birth cohorts, born 20 years apart. The members of the Bristish Cohort Study (BCS) cohort were born in April 1970 (University College London, UCL Institute of Education, Centre for Longitudinal Studies and J. Bynner, 2019), and the members of the Longitudinal Study of Young People in England (LSYPE or Next Steps) were all born in 1989 or 1990 (University College London, UCL Institute of Education, Centre for Longitudinal Studies, 2018). The surveys are similar in aim and are both run by the Centre for Longitudinal Studies (CLS) at University College London. However, there are important differences between the surveys and the data they provide, not least due to the difference in age of the two cohorts: the members of BCS70 were aged 46 at the last round of interviews in 2016, while the LSYPE members were 25 for their last round of interviews in 2015. Therefore, much more information is available and over a longer period on the labour market experience, and careers of the older cohort. These differences between the cohorts has shaped my approach to this analysis and chiefly the decision to estimate two different models: one that is estimable on both cohorts’ data, and one requiring data only available for the older cohort. For now I am focusing only on the cross-cohort model, and the data description will focus on that model's requirements.
+
+## Data for the cross-cohort model
+
+Recall the key ingredients required to identify the model discussed in section 5:
+-  two (continuous) related outcomes that depend on type, one affected by schooling and one not (conditional on type)^[These could both depend on schooling, though this creates issues in identifying types consistently across schooling levels. I refer to them as “outcomes” as it makes sense that we use the main outcome(s) we care about, though they could both be measurements whose only role is to shed light on the types.]
+  - parents' income at 16 (assumed independent of schooling conditional on type) 14
+  - cohort member’s income at age 25 (depends on schooling and type)
+- instrument(s) for the treatment (schooling), that does not affect either measurement (except through schooling) conditional on type
+  - TBC
+- a measure of treatment received
+  - whether the cohort member completed an undergraduate degree before 25
+  
+These are all available in both cohorts, though finding a consistent instrument across the two cohorts is problematic. *What does it mean for an instrument to be consistent instrument for two different cohorts?*
+
+## The British Cohort Survey (BCS1970)
+
+I focus first on the British Cohort Survey. 
+
+```{r load bcs data, eval=FALSE} 
+data("bcs70")
+```
+
+
+```{r choosing and renaming variables, eval=FALSE}
+
+dtBcs <- merge(
+  merge(
+    bcs70$bcs86x, bcs70$bcs96x,
+    by = "bcsid"
+    ), bcs70$bcs2000, by = "bcsid"
+)
+
+oldNpVars <- c(
+  # about work
+  "c5a1", "c5a2", "c5a3", "c5a4", "c5a5", "c5a6", "c5a7", "c5a8", "c5a9",
+  # job related
+  "c5d1", "c5d2", "c5d3", "c5d4", "c5d5", "c5d6", "c5d7", "c5d8",
+  "c5d9", "c5d10", "c5d11", "c5d12", "c5d13", "c5d14", "c5d15", "c5d16",
+  # adult life
+  "c5e1", "c5e2", "c5e3", "c5e4", "c5e5", "c5e6", "c5e7", "c5e8", "c5e9", 
+  "c5e10", "c5e11", "c5e12", "c5e13", "c5e14", "c5e15"
+)
+
+newNpVars <- c(
+  # about work
+  "qualHelpJob", "whoKnowHelpJob", "deterHelpJob", "luckGetJob", 
+  "educOnlyDelayEmp", "bestLvSchlASAP", "planCareerUseless", "takeAnyJob",
+  "expGrQuals",
+  # job related
+  "helpOth", "hiPay", "goodBoss", "wrkOutside", "selfEmp", "jobVaries",
+  "jobEasy", "jobAmbi", "jobMath", "tradeProf", "jobQuiet", "jobLT", "jobChall",
+  "jobTravel", "jobBuild", "jobRegHrs",
+  # adult life
+  "moreFun", "ftJob", "selfResp", "notBossed", "canVote", "noDoss", "moveOut",
+  "getMarr", "nightClub", "localComm", "xFilms", "drinkAlc", "politics", "kids",
+  "doWhatIWant"
+  # personality ones to add
+)
+
+setnames(dtBcs, oldNpVars, newNpVars)
+
+
+```
