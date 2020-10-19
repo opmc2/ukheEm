@@ -70,5 +70,5 @@ dtBcs4Em[, c("left", "right") := .(log(left), log(right))]
 # save to \data
 use_data(dtBcs4Em, overwrite = TRUE)
 
-# save as .rds to \data to use in examples and functions
+# save as .rds to /data to use in examples and functions
 saveRDS(dtBcs4Em, file = here("data/dtBcs4Em.rds"))

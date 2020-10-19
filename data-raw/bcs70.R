@@ -5,12 +5,9 @@ library(here)
 library(data.table)
 library(foreign)
 
-# data directory
-dataDir <- "data-raw/Bcs70"
-
 # list files
 bcsFilePaths <- as.list(list.files(
-  path = here(dataDir),
+  path = here("data-raw/Bcs70"),
   pattern = ".sav", full.names = TRUE, recursive = TRUE
 ))
 
@@ -47,8 +44,13 @@ for (i in seq_along(bcsListDt)) {
   bcsListDt[[i]][, file := bcsWaves[[i]]]
 }
 
+saveRDS(bcsListLabels, file = here("Rdata/bcs70labels.rds"))
+
+# save as RDS
+saveRDS(bcsListDt, file = here("Rdata/bcs70.rds"))
+
 # save in /data
 bcs70 <- bcsListDt
 use_data(bcs70, overwrite = T)
 bcs70labels <- bcsListLabels
-use_data(bcs70labels)
+use_data(bcs70labels, overwrite = T)
