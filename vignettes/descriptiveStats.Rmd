@@ -1,0 +1,270 @@
+---
+title: "descriptiveStats"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{descriptiveStats}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+load_all()
+library(ggplot2)
+
+# load data
+data("lsype1YP", "lsype1FB", "lsype1YPlabels", "lsype1FBlabels")
+
+# create dtLsype
+lsype1YP <- lapply(lsype1YP, as.data.table)
+
+benefitCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Benefits"]
+costCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Costs"]
+
+WhyHeCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "WHYHEYP"]
+HeConCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HeCon"]
+
+# new variable indicating if asked b/c questions
+lsype1YP[[4]][, inSubSample := !is.na(W4BenefitsYP0a)]
+
+dtLsype <- merge(
+  lsype1YP[[4]][, .(NSID, female = (W4SexYP == "Female"), ethGrp = W4ethgrpYP,
+                    mainAct17 = W4MainActYP, inSubSample, 
+                    plan2applyHe = fcase(
+                      W4Heposs9YP %in% c("Very likely", "Fairly likely"), T,
+                      W4Heposs9YP %in% c("Not very likely", 
+                                         "Not at all likely"), F
+                    ),
+                    .SD), 
+                .SDcols = c(benefitCols, costCols, WhyHeCols, HeConCols)], 
+  lsype1YP[[8]][, .(NSID, W8USUAL, mainAct25 = W8DACTIVITY, 
+                    employed25 = fcase(W8DWRK == "Currently employed", T,
+                                       W8DWRK == "Not currently employed", F), 
+                    degree = fcase(W8DDEGP == "First or higher degree", T,
+                                   W8DDEGP == "No degree", F),
+                    russellGrp = fcase(
+                      W8DRUSSELL == "Awarded by Russell Group university", T,
+                      W8DRUSSELL == "Awarded by other HE institution", F),
+                    wage25 = W8GROW)],
+  on = "NSID"
+)
+
+setnames(dtLsype, 
+         old = paste0(".SD.", c(benefitCols, costCols, WhyHeCols, HeConCols)),
+         new = c(benefitCols, costCols, WhyHeCols, HeConCols))
+
+```
+
+This vignette produces descriptive statistics and plots for the datasets I use in the UKHE project(s).
+
+# Next Steps (LSYPE1)
+
+The main data source for this project is the longitudinal cohort study Next Steps, previously the Longitudinal Study of Young People in England 1 (LSYPE1).
+
+## Descriptive statistics: full vs subsample
+
+I select my subsample based on some key questions that were only asked to some of the students. 
+These questions relate to the advantages and disadvantages of attending university, and were on asked to students who had at least 5 GCSEs at grade A*-C or passes at intermediate GNVQ. 
+This does not seem to be an official "entry standard" to university, and it is not entirely clear to me why this selection was made for this question. 
+
+```{r desc stats lsype1}
+
+dtLsype[, .(
+  .N, 
+  Female = mean(female, na.rm = T), 
+  University = mean(degree, na.rm = T),
+  RussellGroup = mean(russellGrp, na.rm = T),
+  Employed25 = mean(employed25, na.rm = T),
+  Wage25 = median(wage25, na.rm = T)
+), by = inSubSample]
+
+dtLsype[, .(
+  .N, 
+  Female = mean(female, na.rm = T), 
+  University = mean(degree, na.rm = T),
+  RussellGroup = mean(russellGrp, na.rm = T),
+  Employed25 = mean(employed25, na.rm = T),
+  Wage25 = median(wage25, na.rm = T)
+)]
+
+```
+### Wage distributions
+
+```{r earning dist lsype}
+
+wageQs <- dtLsype[, quantile(wage25, probs = c(0, .99), na.rm = T)]
+
+ggplot(
+  data = dtLsype[!is.na(degree)],
+  mapping = aes(x = wage25, colour = degree, linetype = degree) 
+) +
+  geom_line(stat = "density") +
+  scale_x_continuous(name = "Wage @25 (gross weekly, GBP)", 
+                     limits = wageQs) +
+  scale_color_discrete(name = "First degree") +
+  scale_linetype_discrete(name = "First degree") +
+  theme_bw() +
+  theme(legend.position = c(.9, .9), 
+        text = element_text(size = 15))
+
+# ggsave(
+#   filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/wageDistsLsype.png",
+#   width = 10, height = 6
+# )
+
+```
+
+### Other factors ("psychic costs")
+
+```{r other factor questions lsype}
+
+# benefit labels
+benefitLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Social life", "Leave home", "Learning", 
+  "More qualifications", "Personal development", "More confidence",
+  "More respect", "Better life (general)", "Gain life skills", "Other", 
+  "Don't know", "No answer"
+)
+
+costLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Not needed for job", "Less experience", "Heavy workload", "Leave home",
+  "Takes long time", "Waste of time", "Tuition fees etc.", "Stress", "Other",
+  "Don't know", "No answer"
+)
+
+dtBenefits <- dtLsype[inSubSample == T, 
+                            .(benefit = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = benefitCols, 
+                      by = c("plan2applyHe", "degree")]
+
+dtCosts <- dtLsype[inSubSample == T, 
+                            .(cost = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = costCols, 
+                   by = c("plan2applyHe", "degree")]
+
+# plot and save benefits
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = plan2applyHe)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/benefitsPlot.png",
+  width = 10, height = 6
+)
+
+# plot and save costs
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = plan2applyHe)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/costsPlot.png",
+  width = 10, height = 6
+)
+```
+
+```{r main reasons} 
+
+WhyHeCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "WHYHEYP"]
+HeConCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HeCon"]
+
+WhyHeLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Learning", "Get a degree",
+  "More qualifications", "Social life", "Leave home", "Personal development", 
+  "More confidence", "More respect", "Expected by teachers", 
+  "Expected by fam/friends", "Better life (general)", "Gain life skills", 
+  "Other", "No answer", "Don't know", "Refusal"
+)
+
+HeConLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Teacher advised get job", "Family advised get job", 
+  "Not needed for job", "Application difficult", "Not got grades",
+  "Break from study", "Not sure I'd like", "Not interested", "Not fit in",
+  "Heavy workload", "Friends got jobs", "No particular reason",
+  "Takes long time", "Waste of time", "Other",
+  "Don't know", "Refusal"
+)
+
+# count number of answers
+dtWhyHe <- dtLsype[inSubSample == T, 
+                            .(reason = names(.SD), 
+                              count = colSums(.SD == "Mentioned", na.rm = T)), 
+                            .SDcols = WhyHeCols, by = degree]
+
+dtHeCon <- dtLsype[inSubSample == T, 
+                            .(reason = names(.SD), 
+                              count = colSums(.SD == "Mentioned", na.rm = T)), 
+                            .SDcols = HeConCols, by = degree]
+
+# plot and save why HE
+ggplot(
+  data = dtWhyHe,
+  mapping = aes(x = reason, y = count, fill = degree)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = WhyHeCols, labels = WhyHeLabels) +
+  scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+                      labels = c("BA +", "No degree", NA)) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/whyHePlot.png",
+  width = 10, height = 6
+)
+
+# plot and save costs
+ggplot(
+  data = dtHeCon,
+  mapping = aes(x = reason, y = count, fill = degree)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = HeConCols, labels = HeConLabels) +
+  scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+                      labels = c("BA +", "No degree", NA)) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/heConPlot.png",
+  width = 10, height = 6
+)
+
+```
