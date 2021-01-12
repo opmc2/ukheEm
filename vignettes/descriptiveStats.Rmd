@@ -24,6 +24,7 @@ data("lsype1YP", "lsype1FB", "lsype1YPlabels", "lsype1FBlabels")
 
 # create dtLsype
 lsype1YP <- lapply(lsype1YP, as.data.table)
+lsype1FB <- lapply(lsype1FB, as.data.table) 
 
 benefitCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Benefits"]
 costCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Costs"]
@@ -37,6 +38,7 @@ lsype1YP[[4]][, inSubSample := !is.na(W4BenefitsYP0a)]
 dtLsype <- merge(
   lsype1YP[[4]][, .(NSID, female = (W4SexYP == "Female"), ethGrp = W4ethgrpYP,
                     mainAct17 = W4MainActYP, inSubSample, 
+                    numAlev17 = W4AlevNoYP,
                     plan2applyHe = fcase(
                       W4Heposs9YP %in% c("Very likely", "Fairly likely"), T,
                       W4Heposs9YP %in% c("Not very likely", 
@@ -52,9 +54,13 @@ dtLsype <- merge(
                     russellGrp = fcase(
                       W8DRUSSELL == "Awarded by Russell Group university", T,
                       W8DRUSSELL == "Awarded by other HE institution", F),
-                    wage25 = W8GROW)],
+                    wage25 = W8GROW, everUni = (W8EVERUNI == "Yes"))],
   on = "NSID"
 )
+
+dtLsype <- merge(dtLsype, 
+                 lsype1FB[[4]][, .(NSID, W4Inc1EstMP, 
+                                   w4SOCMajorMP, w4SOCMajorSP)])
 
 setnames(dtLsype, 
          old = paste0(".SD.", c(benefitCols, costCols, WhyHeCols, HeConCols)),
@@ -68,22 +74,59 @@ This vignette produces descriptive statistics and plots for the datasets I use i
 
 The main data source for this project is the longitudinal cohort study Next Steps, previously the Longitudinal Study of Young People in England 1 (LSYPE1).
 
+## Parental earnings: my measure of SES
+
+```{r parInc}
+
+dtLsype[, inc_midPts := fcase(
+  W4Inc1EstMP == "Up to £2,599", 1300,
+  W4Inc1EstMP == "£2,600 up to £5,199", 3900,
+  W4Inc1EstMP == "£5,200 up to £10,399", 7500,
+  W4Inc1EstMP == "£10,400 up to £15,599", 12500,
+  W4Inc1EstMP == "£15,600 up to £20,799", 17500,
+  W4Inc1EstMP == "£20,800 up to £25,999", 22500,
+  W4Inc1EstMP == "£26,000 up to £31,199", 28000,
+  W4Inc1EstMP == "£31,200 up to £36,399", 33000,
+  W4Inc1EstMP == "£36,400 up to £41,599", 38000,
+  W4Inc1EstMP == "£41,600 up to £46,799", 43000, 
+  W4Inc1EstMP == "£46,800 up to £51,999", 48000,
+  W4Inc1EstMP == "£52,000 or more", 55000
+)]
+
+dtLsype[, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+dtLsype[inSubSample == T, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+
+dtLsype[, parInc := fcase(
+  W4Inc1EstMP %in% c("Up to £2,599", 
+                     "£2,600 up to £5,199", 
+                     "£5,200 up to £10,399", 
+                     "£10,400 up to £15,599"), 1,
+  W4Inc1EstMP %in% c("£15,600 up to £20,799",
+                     "£20,800 up to £25,999",
+                     "£26,000 up to £31,199",
+                     "£31,200 up to £36,399",
+                     "£36,400 up to £41,599",
+                     "£41,600 up to £46,799"), 2,
+  W4Inc1EstMP %in% c("£46,800 up to £51,999", 
+                     "£52,000 or more"), 3
+)]
+
+dtLsype[, parInc := factor(parInc, levels = 1:3, 
+                         labels = c("Bottom 20%",
+                                    "Middle 60%",
+                                    "Top 20%"))]
+
+```
+
 ## Descriptive statistics: full vs subsample
 
 I select my subsample based on some key questions that were only asked to some of the students. 
-These questions relate to the advantages and disadvantages of attending university, and were on asked to students who had at least 5 GCSEs at grade A*-C or passes at intermediate GNVQ. 
+These questions relate to the advantages and disadvantages of attending university, and were only asked to students who had at least 5 GCSEs at grade A*-C or passes at intermediate GNVQ. 
 This does not seem to be an official "entry standard" to university, and it is not entirely clear to me why this selection was made for this question. 
 
 ```{r desc stats lsype1}
 
-dtLsype[, .(
-  .N, 
-  Female = mean(female, na.rm = T), 
-  University = mean(degree, na.rm = T),
-  RussellGroup = mean(russellGrp, na.rm = T),
-  Employed25 = mean(employed25, na.rm = T),
-  Wage25 = median(wage25, na.rm = T)
-), by = inSubSample]
+wageQs <- dtLsype[inSubSample == T, quantile(wage25, probs = c(0, .99), na.rm = T)]
 
 dtLsype[, .(
   .N, 
@@ -91,18 +134,50 @@ dtLsype[, .(
   University = mean(degree, na.rm = T),
   RussellGroup = mean(russellGrp, na.rm = T),
   Employed25 = mean(employed25, na.rm = T),
-  Wage25 = median(wage25, na.rm = T)
+  Wage25 = median(wage25, na.rm = T),
+  Wage25mean = mean(wage25, na.rm = T),
+  sdWage = sd(wage25, na.rm = T)
+), by = degree]
+
+dtLsype[inSubSample == T & wage25 %between% wageQs, .(
+  .N, 
+  Female = mean(female, na.rm = T), 
+  University = mean(everUni, na.rm = T),
+  Degree = mean(degree, na.rm = T),
+  RussellGroup = mean(russellGrp, na.rm = T),
+  Employed25 = mean(employed25, na.rm = T),
+  Wage25med = median(wage25, na.rm = T),
+  Wage25mean = mean(wage25, na.rm = T),
+  sdWage = sd(wage25, na.rm = T)
 )]
 
+dtLsype[inSubSample == T, mean(degree, na.rm = T), by = parInc]
+dtLsype[, mean(degree, na.rm = T), by = parInc]
+
+# alevels 
+dtLsype[, mean(is.na(numAlev17))]
+dtLsype[inSubSample == T, mean(is.na(numAlev17))]
+
+# number of alevels
+dtLsype[, mean(numAlev17, na.rm = T)]
+dtLsype[inSubSample == T, mean(numAlev17, na.rm = T)]
+
+# ethnic group
+dtLsype[, .N / 6628, by = ethGrp]
+dtLsype[inSubSample == T, .N / 4640, by = ethGrp]
+
+# parents occupation
+dtLsype[, .N / 6628, by = w4SOCMajorMP]
+dtLsype[inSubSample == T, .N / 4640, by = w4SOCMajorMP]
 ```
 ### Wage distributions
 
 ```{r earning dist lsype}
 
-wageQs <- dtLsype[, quantile(wage25, probs = c(0, .99), na.rm = T)]
+wageQs <- dtLsype[inSubSample == T, quantile(wage25, probs = c(0, .99), na.rm = T)]
 
 ggplot(
-  data = dtLsype[!is.na(degree)],
+  data = dtLsype[!is.na(degree) & inSubSample == T],
   mapping = aes(x = wage25, colour = degree, linetype = degree) 
 ) +
   geom_line(stat = "density") +
@@ -111,6 +186,7 @@ ggplot(
   scale_color_discrete(name = "First degree") +
   scale_linetype_discrete(name = "First degree") +
   theme_bw() +
+  # facet_wrap(vars(inSubSample)) +
   theme(legend.position = c(.9, .9), 
         text = element_text(size = 15))
 
@@ -141,6 +217,8 @@ costLabels <- c(
   "Takes long time", "Waste of time", "Tuition fees etc.", "Stress", "Other",
   "Don't know", "No answer"
 )
+
+names(costLabels) <- costCols
 
 dtBenefits <- dtLsype[inSubSample == T, 
                             .(benefit = names(.SD), 
@@ -193,6 +271,39 @@ ggsave(
   filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/costsPlot.png",
   width = 10, height = 6
 )
+
+finLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "Tuition fees etc."
+)
+
+finFactors <- names(costLabels)[costLabels %in% finLabels]
+
+dtCosts[, highlight := fcase(
+  cost %in% finFactors, 1,
+  default = .2
+)]
+
+# plot and save costs
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = plan2applyHe, alpha = highlight)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85)) +
+  guides(alpha = "none")
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/finFactPlot.png",
+  width = 10, height = 6
+)
 ```
 
 ```{r main reasons} 
@@ -234,12 +345,12 @@ dtHeCon <- dtLsype[inSubSample == T,
 # plot and save why HE
 ggplot(
   data = dtWhyHe,
-  mapping = aes(x = reason, y = count, fill = degree)
+  mapping = aes(x = reason, y = count)
 ) +
   geom_col() +
   scale_x_discrete(name = NULL, limits = WhyHeCols, labels = WhyHeLabels) +
-  scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
-                      labels = c("BA +", "No degree", NA)) +
+  # scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+  #                     labels = c("BA +", "No degree", NA)) +
   coord_flip() +
   theme_bw() +
   theme(text = element_text(size = 15), legend.position = c(.85, .85))
@@ -252,12 +363,12 @@ ggsave(
 # plot and save costs
 ggplot(
   data = dtHeCon,
-  mapping = aes(x = reason, y = count, fill = degree)
+  mapping = aes(x = reason, y = count)
 ) +
   geom_col() +
   scale_x_discrete(name = NULL, limits = HeConCols, labels = HeConLabels) +
-  scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
-                      labels = c("BA +", "No degree", NA)) +
+  # scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+  #                     labels = c("BA +", "No degree", NA)) +
   coord_flip() +
   theme_bw() +
   theme(text = element_text(size = 15), legend.position = c(.85, .85))
