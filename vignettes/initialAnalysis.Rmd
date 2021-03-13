@@ -1,5 +1,5 @@
 ---
-title: "Who goes to university and why? A comparison across cohorts (1985 -- 2015)"
+title: "Initial Analysis of LSYPE1 for UkHeEM"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{initialAnalysis}
