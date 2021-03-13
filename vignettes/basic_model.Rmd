@@ -1,0 +1,314 @@
+---
+title: "The basic model"
+author: "Oliver Cassagneau-Francis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The basic model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding[utf8]{inputenc}
+---
+
+```{r setup}
+
+# library(ukheEm)
+devtools::load_all()
+library(ggplot2)
+library(glmnet)
+
+# colorblind palette
+colorblind_palette <- c("#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", 
+                        "#AA4499", "#44AA99", "#999933", "#882255", "#661100", 
+                        "#6699CC", "#888888")
+
+# load data
+data("lsype1YP", "lsype1FB", "lsype1YPlabels", "lsype1FBlabels")
+
+# create dtLsype
+lsype1YP <- lapply(lsype1YP, as.data.table)
+lsype1FB <- lapply(lsype1FB, as.data.table) 
+
+benefitCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Benefits"]
+costCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Costs"]
+
+WhyHeCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "WHYHEYP"]
+HeConCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HeCon"]
+
+fundStudCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Fundstud"]
+debtAttCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Debtatt"]
+fateCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Fat"]
+heCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HE[1-9]"]
+
+# new variable indicating if asked b/c questions
+lsype1YP[[4]][, inSubSample := !is.na(W4BenefitsYP0a)]
+
+dtLsype <- merge(
+  lsype1YP[[4]][, .(NSID, female = (W4SexYP == "Female"), ethGrp = W4ethgrpYP,
+                    mainAct17 = W4MainActYP, inSubSample, 
+                    numAlev17 = relevel(factor(W4AlevNoYP, exclude = ""), 
+                                        ref = 3),
+                    finSuppUni = W4SupConfYP,
+                    grantElig = W4GrantElYP,
+                    plan2applyHe = fcase(
+                      W4Heposs9YP %in% c("Very likely", "Fairly likely"), T,
+                      W4Heposs9YP %in% c("Not very likely", 
+                                         "Not at all likely"), F
+                    ),
+                    .SD), 
+                .SDcols = c(benefitCols, costCols, WhyHeCols, HeConCols, 
+                            fundStudCols, debtAttCols, fateCols, heCols)], 
+  lsype1YP[[8]][, .(NSID, W8USUAL, mainAct25 = W8DACTIVITY, 
+                    employed25 = fcase(W8DWRK == "Currently employed", T,
+                                       W8DWRK == "Not currently employed", F), 
+                    degree = fcase(W8DDEGP == "First or higher degree", T,
+                                   W8DDEGP == "No degree", F),
+                    russellGrp = fcase(
+                      W8DRUSSELL == "Awarded by Russell Group university", T,
+                      W8DRUSSELL == "Awarded by other HE institution", F),
+                    wage25 = W8GROW, everUni = (W8EVERUNI == "Yes"))],
+  on = "NSID"
+)
+
+dtLsype <- merge(dtLsype, 
+                 lsype1FB[[4]][, .(NSID, W4Inc1EstMP, 
+                                   w4SOCMajorMP, w4SOCMajorSP)])
+
+setnames(dtLsype, 
+         old = paste0(".SD.", 
+                      c(benefitCols, costCols, WhyHeCols, HeConCols, 
+                        fundStudCols, debtAttCols, fateCols, heCols)),
+         new = c(benefitCols, costCols, WhyHeCols, HeConCols, fundStudCols,
+                 debtAttCols, fateCols, heCols))
+
+
+# Parental earnings: my measure of SES
+dtLsype[, inc_midPts := fcase(
+  W4Inc1EstMP == "Up to £2,599", 1300,
+  W4Inc1EstMP == "£2,600 up to £5,199", 3900,
+  W4Inc1EstMP == "£5,200 up to £10,399", 7500,
+  W4Inc1EstMP == "£10,400 up to £15,599", 12500,
+  W4Inc1EstMP == "£15,600 up to £20,799", 17500,
+  W4Inc1EstMP == "£20,800 up to £25,999", 22500,
+  W4Inc1EstMP == "£26,000 up to £31,199", 28000,
+  W4Inc1EstMP == "£31,200 up to £36,399", 33000,
+  W4Inc1EstMP == "£36,400 up to £41,599", 38000,
+  W4Inc1EstMP == "£41,600 up to £46,799", 43000, 
+  W4Inc1EstMP == "£46,800 up to £51,999", 48000,
+  W4Inc1EstMP == "£52,000 or more", 55000
+)]
+
+# dtLsype[, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+# dtLsype[inSubSample == T, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+
+dtLsype[, parInc := fcase(
+  W4Inc1EstMP %in% c("Up to £2,599", 
+                     "£2,600 up to £5,199", 
+                     "£5,200 up to £10,399", 
+                     "£10,400 up to £15,599"), 1,
+  W4Inc1EstMP %in% c("£15,600 up to £20,799",
+                     "£20,800 up to £25,999",
+                     "£26,000 up to £31,199",
+                     "£31,200 up to £36,399",
+                     "£36,400 up to £41,599",
+                     "£41,600 up to £46,799"), 2,
+  W4Inc1EstMP %in% c("£46,800 up to £51,999", 
+                     "£52,000 or more"), 3
+)]
+
+dtLsype[, parInc := factor(parInc, levels = 1:3, 
+                         labels = c("Bottom 20%",
+                                    "Middle 60%",
+                                    "Top 20%"))]
+
+dtLsype[, parInc4StLns := fcase(
+  W4Inc1EstMP %in% c("Up to £2,599", 
+                     "£2,600 up to £5,199", 
+                     "£5,200 up to £10,399", 
+                     "£10,400 up to £15,599"), 1,
+  W4Inc1EstMP %in% c("£15,600 up to £20,799"), 2,
+  W4Inc1EstMP %in% c("£20,800 up to £25,999",
+                     "£26,000 up to £31,199",
+                     "£31,200 up to £36,399"), 3,
+  W4Inc1EstMP %in% c("£36,400 up to £41,599",
+                     "£41,600 up to £46,799", 
+                     "£46,800 up to £51,999", 
+                     "£52,000 or more"), 4
+)]
+
+dtLsype[, parInc4StLns := factor(parInc4StLns, levels = 1:4, 
+                         labels = c("Low income",
+                                    "Middle income",
+                                    "Upper middle income",
+                                    "High income"))]
+
+
+benefitLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Social life", "Leave home", "Learning", 
+  "More qualifications", "Personal development", "More confidence",
+  "More respect", "Better life (general)", "Gain life skills", "Other", 
+  "Don't know", "No answer"
+)
+
+names(benefitLabels) <- benefitCols
+
+costLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Not needed for job", "Less experience", "Heavy workload", "Leave home",
+  "Takes long time", "Waste of time", "Tuition fees etc.", "Stress", "Other",
+  "Don't know", "No answer"
+)
+
+names(costLabels) <- costCols
+
+# recode W4HE1YP0a and W4HE1YP0b
+dtLsype[, W4HE1YP := fcase(
+  W4HE1YP0a == "Strongly agree" | W4HE1YP0b == "Strongly disagree", 1,
+  W4HE1YP0a == "Agree" | W4HE1YP0b == "Disagree", 2,
+  W4HE1YP0a == "Disagree" | W4HE1YP0b == "Agree", 3,
+  W4HE1YP0a == "Strongly disagree" | W4HE1YP0b == "Strongly agree", 4
+)][, W4HE1YP := factor(W4HE1YP, levels = 1:4, 
+                       labels = c("Strongly agree", "Agree", "Disagree",
+                                  "Strongly disagree"))]
+
+heCols2 <- c("W4HE1YP", heCols[-c(1,2)])
+
+```
+
+
+# Estimating the model for expected earnings
+
+```{r setup formulas}
+# background characteristics
+xVars <- c(
+  # YP characteristics
+  "ethGrp", "female", "numAlev17",
+  # Family background
+  "parInc"
+)
+
+# keep only those with finite wages
+dtLsype <- dtLsype[wage25 < Inf & wage25 > 0]
+
+# create lwage as log-wage at 25 split by degree
+dtLsype[degree == T, lwageUni := log(wage25)]
+dtLsype[degree == F, lwageHS := log(wage25)]
+
+# subjective expectations / beliefs
+zVars <- c(benefitCols, costCols, 
+           # debtAttCols, 
+           heCols2)
+
+formula_wageHS <- as.formula(
+  paste0('lwageHS ~ ', 
+         paste0(c(xVars, 
+                  # none of HS sample mentioned depending on parents as a "cost"
+                  zVars[zVars != "W4CostsYP0c"]), 
+                collapse = ' + '))
+) 
+
+formula_wageUni <- as.formula(
+  paste0('lwageUni ~ ', 
+         paste0(c(xVars, zVars), collapse = ' + '))
+)
+
+# linear model for HS wages
+wageModelHS <- lm(
+  formula = formula_wageHS, 
+  data = dtLsype,
+  na.action = "na.exclude"
+)
+
+coefplot::coefplot(wageModelHS)
+summary(wageModelHS)
+
+# linear model for uni wages
+wageModelUni <- lm(
+  formula = formula_wageUni, 
+  data = dtLsype,
+  na.action = "na.exclude"
+)
+
+
+```
+
+### Visualising missing data
+
+There is an issue with missing data in the HS wage model.
+
+```{r missing data}
+
+library(visdat)
+
+cols2vis <- c("wage25", xVars, zVars)
+
+vis_dat(dtLsype[degree == T, ..cols2vis])
+
+vis_dat(dtLsype[degree == F, ..cols2vis])
+
+```
+
+
+## Variable selection using `glmnet`
+
+### Non degree holders
+
+```{r gmnet on wage HS}
+
+# set up model frame ("dt") and matrix ("x") for use with glmnet()
+dtHS <- model.frame(
+  formula = formula_wageHS,
+  data = dtLsype
+)
+
+xHS <- model.matrix(
+  object = formula_wageHS,
+  data = dtHS
+)[, -1]
+
+yHS <- dtHS$lwageHS
+
+# run glmnet with cross-validation (to suggest lambda values)
+cvFit_HS <- cv.glmnet(
+  x = xHS, y = yHS
+)
+
+plot(cvFit_HS)
+
+# coefficients for "best" lambda
+coef(cvFit_HS, s = "lambda.min")
+
+# coefficients for "one-standard-error" lambda
+coef(cvFit_HS, s = "lambda.1se")
+```
+
+### Degree holders
+
+```{r gmnet on wage uni}
+
+# set up model frame ("dt") and matrix ("x") for use with glmnet()
+dtUni <- model.frame(
+  formula = formula_wageUni,
+  data = dtLsype
+)
+
+xUni <- model.matrix(
+  object = formula_wageUni,
+  data = dtUni
+)[, -1]
+
+yUni <- dtUni$lwageUni
+
+# run glmnet with cross-validation (to suggest lambda values)
+cvFit_uni <- cv.glmnet(
+  x = xUni, y = yUni
+)
+
+plot(cvFit_uni)
+
+# coefficients for "best" lambda
+coef(cvFit_uni, s = "lambda.min")
+
+# coefficients for "one-standard-error" lambda
+coef(cvFit_uni, s = "lambda.1se")
+```
