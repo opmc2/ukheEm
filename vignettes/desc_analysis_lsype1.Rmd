@@ -1,0 +1,1332 @@
+---
+title: "Decsriptive statistics + probability model (LSYPE)"
+output: rmarkdown::html_vignette
+bibliography: ukhe.bib
+vignette: >
+  %\VignetteIndexEntry{descriptiveStats}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = FALSE,
+  fig.dim = c(10,6),
+  out.width = "100%"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+devtools::load_all()
+library(ggplot2)
+
+# colorblind palette
+colorblind_palette <- c("#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", 
+                        "#AA4499", "#44AA99", "#999933", "#882255", "#661100", 
+                        "#6699CC", "#888888")
+
+# load data
+data("lsype1YP", "lsype1FB", "lsype1YPlabels", "lsype1FBlabels")
+
+# create dtLsype
+lsype1YP <- lapply(lsype1YP, as.data.table)
+lsype1FB <- lapply(lsype1FB, as.data.table) 
+
+benefitCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Benefits"]
+costCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Costs"]
+
+WhyHeCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "WHYHEYP"]
+HeConCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HeCon"]
+
+fundStudCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Fundstud"]
+debtAttCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Debtatt"]
+fateCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "Fat"]
+heCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HE[1-9]"]
+
+# new variable indicating if asked b/c questions
+lsype1YP[[4]][, inSubSample := !is.na(W4BenefitsYP0a)]
+
+dtLsype <- merge(
+  lsype1YP[[4]][, .(NSID, female = (W4SexYP == "Female"), ethGrp = W4ethgrpYP,
+                    mainAct17 = W4MainActYP, inSubSample, 
+                    numAlev17 = relevel(factor(W4AlevNoYP), ref = 3),
+                    finSuppUni = W4SupConfYP,
+                    grantElig = W4GrantElYP,
+                    plan2applyHe = fcase(
+                      W4Heposs9YP %in% c("Very likely", "Fairly likely"), T,
+                      W4Heposs9YP %in% c("Not very likely", 
+                                         "Not at all likely"), F
+                    ),
+                    .SD), 
+                .SDcols = c(benefitCols, costCols, WhyHeCols, HeConCols, 
+                            fundStudCols, debtAttCols, fateCols, heCols)], 
+  lsype1YP[[8]][, .(NSID, W8USUAL, mainAct25 = W8DACTIVITY, 
+                    employed25 = fcase(W8DWRK == "Currently employed", T,
+                                       W8DWRK == "Not currently employed", F), 
+                    degree = fcase(W8DDEGP == "First or higher degree", T,
+                                   W8DDEGP == "No degree", F),
+                    russellGrp = fcase(
+                      W8DRUSSELL == "Awarded by Russell Group university", T,
+                      W8DRUSSELL == "Awarded by other HE institution", F),
+                    wage25 = W8GROW, everUni = (W8EVERUNI == "Yes"))],
+  on = "NSID"
+)
+
+dtLsype <- merge(dtLsype, 
+                 lsype1FB[[4]][, .(NSID, W4Inc1EstMP, 
+                                   w4SOCMajorMP, w4SOCMajorSP)])
+
+setnames(dtLsype, 
+         old = paste0(".SD.", 
+                      c(benefitCols, costCols, WhyHeCols, HeConCols, 
+                        fundStudCols, debtAttCols, fateCols, heCols)),
+         new = c(benefitCols, costCols, WhyHeCols, HeConCols, fundStudCols,
+                 debtAttCols, fateCols, heCols))
+
+
+# Parental earnings: my measure of SES
+dtLsype[, inc_midPts := fcase(
+  W4Inc1EstMP == "Up to £2,599", 1300,
+  W4Inc1EstMP == "£2,600 up to £5,199", 3900,
+  W4Inc1EstMP == "£5,200 up to £10,399", 7500,
+  W4Inc1EstMP == "£10,400 up to £15,599", 12500,
+  W4Inc1EstMP == "£15,600 up to £20,799", 17500,
+  W4Inc1EstMP == "£20,800 up to £25,999", 22500,
+  W4Inc1EstMP == "£26,000 up to £31,199", 28000,
+  W4Inc1EstMP == "£31,200 up to £36,399", 33000,
+  W4Inc1EstMP == "£36,400 up to £41,599", 38000,
+  W4Inc1EstMP == "£41,600 up to £46,799", 43000, 
+  W4Inc1EstMP == "£46,800 up to £51,999", 48000,
+  W4Inc1EstMP == "£52,000 or more", 55000
+)]
+
+dtLsype[, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+dtLsype[inSubSample == T, quantile(inc_midPts, probs = seq(0, 1, by = .05), na.rm = TRUE)]
+
+dtLsype[, parInc := fcase(
+  W4Inc1EstMP %in% c("Up to £2,599", 
+                     "£2,600 up to £5,199", 
+                     "£5,200 up to £10,399", 
+                     "£10,400 up to £15,599"), 1,
+  W4Inc1EstMP %in% c("£15,600 up to £20,799",
+                     "£20,800 up to £25,999",
+                     "£26,000 up to £31,199",
+                     "£31,200 up to £36,399",
+                     "£36,400 up to £41,599",
+                     "£41,600 up to £46,799"), 2,
+  W4Inc1EstMP %in% c("£46,800 up to £51,999", 
+                     "£52,000 or more"), 3
+)]
+
+dtLsype[, parInc := factor(parInc, levels = 1:3, 
+                         labels = c("Bottom 20%",
+                                    "Middle 60%",
+                                    "Top 20%"))]
+
+dtLsype[, parInc4StLns := fcase(
+  W4Inc1EstMP %in% c("Up to £2,599", 
+                     "£2,600 up to £5,199", 
+                     "£5,200 up to £10,399", 
+                     "£10,400 up to £15,599"), 1,
+  W4Inc1EstMP %in% c("£15,600 up to £20,799"), 2,
+  W4Inc1EstMP %in% c("£20,800 up to £25,999",
+                     "£26,000 up to £31,199",
+                     "£31,200 up to £36,399"), 3,
+  W4Inc1EstMP %in% c("£36,400 up to £41,599",
+                     "£41,600 up to £46,799", 
+                     "£46,800 up to £51,999", 
+                     "£52,000 or more"), 4
+)]
+
+dtLsype[, parInc4StLns := factor(parInc4StLns, levels = 1:4, 
+                         labels = c("Low income",
+                                    "Middle income",
+                                    "Upper middle income",
+                                    "High income"))]
+
+
+benefitLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Social life", "Leave home", "Learning", 
+  "More qualifications", "Personal development", "More confidence",
+  "More respect", "Better life (general)", "Gain life skills", "Other", 
+  "Don't know", "No answer"
+)
+
+names(benefitLabels) <- benefitCols
+
+costLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Not needed for job", "Less experience", "Heavy workload", "Leave home",
+  "Takes long time", "Waste of time", "Tuition fees etc.", "Stress", "Other",
+  "Don't know", "No answer"
+)
+
+names(costLabels) <- costCols
+
+```
+This vignette produces descriptive statistics and plots for the Next Steps dataset I use in the UKHE project(s).
+
+The main data source for this project is the longitudinal cohort study Next Steps, previously the Longitudinal Study of Young People in England 1 (LSYPE1).
+
+
+# Descriptive statistics: full vs subsample
+
+I select my subsample based on some key questions that were only asked to some of the students. 
+These questions relate to the advantages and disadvantages of attending university, and were only asked to students who had at least 5 GCSEs at grade A*-C or passes at intermediate GNVQ (henceforth "high achieving"). 
+This does not seem to be an official "entry standard" to university, and it is not entirely clear to me why this selection was made for this question. 
+
+```{r desc stats lsype1, results='hide'}
+
+wageQs <- dtLsype[inSubSample == T, quantile(wage25, probs = c(0, .99), na.rm = T)]
+
+dtLsype[, .(
+  .N, 
+  Female = mean(female, na.rm = T), 
+  University = mean(degree, na.rm = T),
+  RussellGroup = mean(russellGrp, na.rm = T),
+  Employed25 = mean(employed25, na.rm = T),
+  Wage25 = median(wage25, na.rm = T),
+  Wage25mean = mean(wage25, na.rm = T),
+  sdWage = sd(wage25, na.rm = T)
+), by = degree]
+
+dtLsype[inSubSample == T & wage25 %between% wageQs, .(
+  .N, 
+  Female = mean(female, na.rm = T), 
+  University = mean(everUni, na.rm = T),
+  Degree = mean(degree, na.rm = T),
+  RussellGroup = mean(russellGrp, na.rm = T),
+  Employed25 = mean(employed25, na.rm = T),
+  Wage25med = median(wage25, na.rm = T),
+  Wage25mean = mean(wage25, na.rm = T),
+  sdWage = sd(wage25, na.rm = T)
+)]
+
+dtLsype[inSubSample == T, mean(degree, na.rm = T), by = parInc]
+dtLsype[, mean(degree, na.rm = T), by = parInc]
+
+# alevels 
+dtLsype[, mean(is.na(numAlev17))]
+dtLsype[inSubSample == T, mean(is.na(numAlev17))]
+
+# number of alevels
+dtLsype[, mean(numAlev17, na.rm = T)]
+dtLsype[inSubSample == T, mean(numAlev17, na.rm = T)]
+
+# ethnic group
+dtLsype[, .N / 6628, by = ethGrp]
+dtLsype[inSubSample == T, .N / 4640, by = ethGrp]
+
+# parents occupation
+dtLsype[, .N / 6628, by = w4SOCMajorMP]
+dtLsype[inSubSample == T, .N / 4640, by = w4SOCMajorMP]
+```
+## Wage distributions
+
+```{r earning dist lsype}
+
+wageQs <- dtLsype[inSubSample == T, quantile(wage25, probs = c(0, .99), na.rm = T)]
+
+ggplot(
+  data = dtLsype[!is.na(degree) & inSubSample == T],
+  mapping = aes(x = wage25, colour = degree, linetype = degree) 
+) +
+  geom_line(stat = "density") +
+  scale_x_continuous(name = "Wage at 25 (gross weekly, GBP)", 
+                     limits = wageQs) +
+  scale_color_discrete(name = "First degree") +
+  scale_linetype_discrete(name = "First degree") +
+  theme_classic() +
+  # facet_wrap(vars(inSubSample)) +
+  theme(legend.position = c(.9, .9), 
+        text = element_text(size = 15))
+
+# ggsave(
+#   filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/wageDistsLsype.png",
+#   width = 10, height = 6
+# )
+
+
+```
+
+## Other factors ("psychic costs")
+
+```{r other factor questions lsype}
+
+# benefit labels
+benefitLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Social life", "Leave home", "Learning", 
+  "More qualifications", "Personal development", "More confidence",
+  "More respect", "Better life (general)", "Gain life skills", "Other", 
+  "Don't know", "No answer"
+)
+
+names(benefitLabels) <- benefitCols
+
+costLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Not needed for job", "Less experience", "Heavy workload", "Leave home",
+  "Takes long time", "Waste of time", "Tuition fees etc.", "Stress", "Other",
+  "Don't know", "No answer"
+)
+
+names(costLabels) <- costCols
+
+dtBenefits <- dtLsype[inSubSample == T, 
+                            .(benefit = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = benefitCols, 
+                      by = c("plan2applyHe", "degree")]
+
+dtCosts <- dtLsype[inSubSample == T, 
+                            .(cost = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = costCols, 
+                   by = c("plan2applyHe", "degree")]
+
+# plot and save benefits
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = plan2applyHe)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/benefitsPlot.png",
+  width = 10, height = 6
+)
+
+# plot and save costs
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = plan2applyHe)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/costsPlot.png",
+  width = 10, height = 6
+)
+
+finLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "Tuition fees etc."
+)
+
+finFactors <- names(costLabels)[costLabels %in% finLabels]
+
+dtCosts[, highlight := fcase(
+  cost %in% finFactors, 1,
+  default = .2
+)]
+
+# plot and save costs plot highlighting financial factors
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = plan2applyHe, alpha = highlight)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Plan to:", 
+                      limits = c(T, F, NA), labels = c("Apply to HE",
+                                                       "Not apply to HE", 
+                                                       "Unsure / other")) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85)) +
+  guides(alpha = "none")
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/finFactPlot.png",
+  width = 10, height = 6
+)
+```
+
+### By subgroup
+
+```{r psychic by subgroup}
+
+dtBenefits <- dtLsype[inSubSample == T, 
+                            .(benefit = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = benefitCols, 
+                      by = c("plan2applyHe", "degree", "parInc", "russellGrp",
+                             "numAlev17", "ethGrp", "parInc4StLns")]
+
+dtCosts <- dtLsype[inSubSample == T, 
+                            .(cost = names(.SD), 
+                              count = colSums(.SD == "Mentioned")), 
+                            .SDcols = costCols, 
+                   by = c("plan2applyHe", "degree", "parInc", "russellGrp",
+                          "numAlev17", "ethGrp", "parInc4StLns")]
+
+# parental income
+
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = parInc)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Parental income quartiles") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = parInc)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Parental income quartiles") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+# parental income for loans / grants
+
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = parInc4StLns)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Parental income: SLC") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = parInc4StLns)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Parental income: SLC") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+# russell group
+
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = russellGrp)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Russell Group") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = russellGrp)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Russell Group") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+
+# number of A-levels at 17 (numAlev17)
+
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = as.factor(numAlev17))
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "#A-levels") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = as.factor(numAlev17))
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "#A-levels") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+# ethnic group (ethGrp)
+
+ggplot(
+  data = dtBenefits,
+  mapping = aes(x = benefit, y = count, fill = ethGrp)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = benefitCols, labels = benefitLabels) +
+  scale_fill_discrete(name = "Ethnic group") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+
+ggplot(
+  data = dtCosts,
+  mapping = aes(x = cost, y = count, fill = ethGrp)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = costCols, labels = costLabels) +
+  scale_fill_discrete(name = "Ethnic group") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+```
+
+### Main reasons
+
+```{r main reasons} 
+
+WhyHeCols <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "WHYHEYP"]
+HeConCols    <- names(lsype1YP[[4]])[names(lsype1YP[[4]]) %like% "HeCon"]
+
+WhyHeLabels <- c(
+  "Get better job", "Well-paid job", "Better opportunities", "Need for career",
+  "Show skills", "Delay get job", "Learning", "Get a degree",
+  "More qualifications", "Social life", "Leave home", "Personal development", 
+  "More confidence", "More respect", "Expected by teachers", 
+  "Expected by fam/friends", "Better life (general)", "Gain life skills", 
+  "Other", "No answer", "Don't know", "Refusal"
+)
+
+HeConLabels <- c(
+  "Expensive", "Get into debt", "Depend on parents", "Not financially indep.",
+  "Not earning / working", "Costs (general)", "No job guarantee", 
+  "Teacher advised get job", "Family advised get job", 
+  "Not needed for job", "Application difficult", "Not got grades",
+  "Break from study", "Not sure I'd like", "Not interested", "Not fit in",
+  "Heavy workload", "Friends got jobs", "No particular reason",
+  "Takes long time", "Waste of time", "Other",
+  "Don't know", "Refusal"
+)
+
+# count number of answers
+dtWhyHe <- dtLsype[inSubSample == T, 
+                            .(reason = names(.SD), 
+                              count = colSums(.SD == "Mentioned", na.rm = T)), 
+                            .SDcols = WhyHeCols, by = degree]
+
+dtHeCon <- dtLsype[inSubSample == T, 
+                            .(reason = names(.SD), 
+                              count = colSums(.SD == "Mentioned", na.rm = T)), 
+                            .SDcols = HeConCols, by = degree]
+
+# plot and save why HE
+ggplot(
+  data = dtWhyHe,
+  mapping = aes(x = reason, y = count)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = WhyHeCols, labels = WhyHeLabels) +
+  # scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+  #                     labels = c("BA +", "No degree", NA)) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/whyHePlot.png",
+  width = 10, height = 6
+)
+
+# plot and save costs
+ggplot(
+  data = dtHeCon,
+  mapping = aes(x = reason, y = count)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = HeConCols, labels = HeConLabels) +
+  # scale_fill_discrete(name = NULL, limits = c(T, F, NA), 
+  #                     labels = c("BA +", "No degree", NA)) +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = c(.85, .85))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/heConPlot.png",
+  width = 10, height = 6
+)
+
+```
+
+## Tuition fees, student loans and maintenance grants
+
+The funding of higher education in the UK has changed frequently in recent years moving from a model of direct government funding prior to 1998, to a model with increasingly higher tuition fees alongside a system of government-subsidised loans and grants (see Table 2.1 in @crawford_payback_2014 for a summary of some of these changes). The majority of the LSYPE1 CMs left sixth-form in 2007, so they would have experienced the system under reforms that came into force in 2006, henceforth the "2006 reforms". The key features of the system under the 2006 reforms are summarised in the table below.
+
+-------------------------------------------------------------------------------
+Measures         Details  
+---------------  --------------------------------------------------------------
+Tuition fees     Set by university, up to £3,000 p.a. payable by ALL students
+
+Grants           Means-tested up to £2,700 p.a. Tapered to zero at £33,560. 
+
+Loans
+
+  *Fees*         Equal to fees charged by university. Available to ALL 
+                 students.
+  
+  *Maintenance*  £3,555 p.a. if household income <£26,000. 
+                 Loan increases from £3,555 p.a. incrementally to £4,405 p.a.
+                 if family income between £26,000 and £33,560. 
+                 Tapered down to £3,305 at £44,000. 
+  
+  *Repayment*    9% of income above £15,950 (threshold rises with inflation).
+                 State-subsidised loans, zero-real interest rate. Debt forgiven 
+                 after 25 years.
+                 
+-------------------------------------------------------------------------------
+
+Table: Details of fees, loans and grants available under the 2006 reforms.
+
+
+### Student debt levels on graduation
+
+@dearden_higher_2005 calculate expected debt levels for a student entering university in 2006/7 (i.e. under the first year of the 2006 reforms). They are in the table below. 
+
+```{r sample by parinc, results='hide', eval=FALSE}
+
+dtLsype[, .N / dtLsype[, .N], by = parInc4StLns]
+
+```
+
+-------------------------------------------------------------------
+Parental income            Debt on graduation      Share in sample 
+------------------------- ----------------------  -----------------
+Low (<£15,970 p.a.)        £19,340                 0.20
+
+Middle (~£25k p.a.)        £19,340                 0.09
+
+Upper middle (~£30k p.a.)  £21,440                 0.22
+
+High (>£44k p.a.)          £18,670                 0.31
+
+Missing income info.       -                       0.18
+
+-------------------------------------------------------------------
+
+Table: Expected debt on graduation (maximum loans under 2006 reforms)
+
+### How informed are students about the financial support available to them?
+
+Some CMs (unfortunately only those who reported being "Very likely" or "Fairly likely" to apply to university) were asked the following question:
+
+> *"How well informed do you feel you are about the sorts of financial support available to students at university? By financial support we mean money from grants or loans to help towards the costs of studying and living away from home. Would you say you are..."*
+
+```{r financ informed}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = finSuppUni, fill = parInc4StLns)) +
+  geom_bar() + 
+  scale_x_discrete(name = NULL) +
+  scale_fill_discrete(name = "Parental income") +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### How do students' plan to fund their studies?
+
+CMs planning to apply to university are asked: 
+
+> *"And which other ways apart from grants and bursaries do you think you would use to pay for your fees and living expenses when you are at university ...?"*
+
+```{r fund studies}
+
+fundStudLabels <- c(
+  "A Student Loan",
+  "Borrowing money from a bank or similar organisation",
+  "Another sort of loan (e.g. credit cards/ overdraft etc. )",
+  "Sponsorship or financial support from an employer",
+  "Doing paid work during term-time",
+  "Doing paid work during the holidays",
+  "Money from parents or other family members",
+  "Money from friends",
+  "Your own savings",
+  "Money from another source (PLEASE GIVE DETAILS)",
+  "Don't Know"
+)
+
+dtFundStud <- dtLsype[inSubSample == T, 
+                      .(fundSource = names(.SD), 
+                        count = colSums(.SD == "Mentioned")), 
+                      .SDcols = fundStudCols, 
+                      by = c("plan2applyHe", "degree", "parInc", "russellGrp",
+                             "numAlev17", "ethGrp", "parInc4StLns")]
+ggplot(
+  data = dtFundStud,
+  mapping = aes(x = fundSource, y = count, fill = parInc4StLns)
+) +
+  geom_col() +
+  scale_x_discrete(name = NULL, limits = fundStudCols, labels = fundStudLabels) +
+  scale_fill_discrete(name = "Parental income") +
+  coord_flip() +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+```
+
+## Attitude towards debt
+
+All "high-achieving" CMs were asked about the costs of attending university, and in particular, their attitude towards debt. 
+
+### University leads to better pay
+
+> *"Getting a degree will mean you get better paid jobs later on in life. Do you..."*
+
+```{r degree means better pay}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt1YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Owing money
+
+> *"Owing money is wrong. Do you..."*
+
+```{r owing money bad}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt2YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Borrowing money
+
+> *"Borrowing money from a bank or loan company is a normal part of today's lifestyle. Do you..."*
+
+```{r borrow money normal}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt3YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Difficult to get out of debt
+
+> *"Once you get into debt it is often very difficult to get out of it. Do you..."*
+
+```{r debt difficult}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt4YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Student loans = cheap money
+
+> *"Student loans are a cheap way to borrow money. Do you..."*
+
+```{r student loans cheap}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt5YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Debt puts people off university
+
+> *"The idea of leaving university with big debts puts people off going there. Do you..."*
+
+```{r uni debt bad}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Debtatt6YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+## In control of own fate?
+
+### Your success is up to you
+
+> *"How much do you agree or disagree that...If someone is not a success in life, it is usually their own fault."*
+
+```{r control own success}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Fat1YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+### Good job hard to get
+
+> *"How much do you agree or disagree that... Even if I [do/did] well at school, [I’ll have/I would have had] a hard time getting the right kind of job."*
+
+```{r good job hard}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4Fat2YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+Although the majority of the CMs accepted to complete the self-completion questionnaire, they generally did not answer usefully the questions on fate...
+
+## Attitude towards higher education
+
+> *"I don't need to have a university degree to get the kind of job I want to do"*
+
+```{r dont need uni}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4HE1YP0a, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+> *"I need to have a university degree to get the kind of job I want to do"*
+
+```{r need uni}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4HE1YP0b, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+> *"The best jobs go to people who have been to university."*
+
+```{r uni best jobs}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4HE2YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+> *"Most of my friends are planning to go to university."*
+
+```{r most friends to uni}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4HE4YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+> *"People like me don't go to university."*
+
+```{r uni not for ppl like me}
+
+ggplot(data = dtLsype, 
+       mapping = aes(x = W4HE6YP, fill = parInc4StLns)) +
+  geom_bar() +
+  scale_fill_discrete(name = "Parental income") +
+  scale_x_discrete(name = NULL) +
+  theme_bw() +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+```
+
+# Probability model of university attendance
+
+The aim of this vignette is to carry out (and document) estimation of probability model(s) of university attendance including students answers to questions about the advantages and disadvantages of attending university. I initially focus on Next Steps data. I will use both realised attainment of a university degree (at age 25) and the intention to apply (at the time of the survey) as dependent variables.  
+
+## Linear probability model (LPM)
+
+The first specification is a (naive) linear probability model of the form
+$$
+D_i = X_i'\beta + Z_i'\gamma + \varepsilon_i
+$$
+where $D$ is the (binary) dependent variable (either attendance or intention to attend), $X$ are person characteristics (including ability, ethnicity, parental income), $Z$ are the advantages and disadvantages of attending university reported by the students, and $\epsilon$ is an error term.
+
+```{r lpm attendance}
+
+dtLsype[, .N, by = "mainAct17"]
+
+xVars <- c(
+  # YP characteristics
+  "ethGrp", "female", "numAlev17",
+  # Family background
+  "parInc"
+)
+
+zVars <- c(benefitCols, costCols)
+
+formula_degree_z <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(zVars), collapse = ' + '))
+) 
+
+formula_degree <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(xVars, zVars), collapse = ' + '))
+)
+
+lpm_degree_z <- lm(
+  formula = formula_degree_z,
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(lpm_degree_z)
+
+dtLpmDegreeZ <- as.data.table(summary(lpm_degree_z)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmDegreeZ[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmDegreeZ, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
+
+lpm_degree <- lm(
+  formula = formula_degree,
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(lpm_degree)
+
+dtLpmDegree <- as.data.table(summary(lpm_degree)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmDegree[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmDegree, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
+
+```
+
+```{r lpm intention}
+
+formula_plan2apply <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(xVars, zVars), collapse = ' + '))
+)
+
+lpm_plan2apply <- lm(
+  formula = formula_plan2apply,
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(lpm_plan2apply)
+
+dtLpmPlan <- as.data.table(summary(lpm_plan2apply)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmPlan[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmPlan, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
+
+```
+
+
+## Logit model
+
+Next I try a logit model which is generally a preferred specification for a binary dependent variable.
+
+```{r logit attendance}
+
+# recode W4HE1YP0a and W4HE1YP0b
+dtLsype[, W4HE1YP := fcase(
+  W4HE1YP0a == "Strongly agree" | W4HE1YP0b == "Strongly disagree", 1,
+  W4HE1YP0a == "Agree" | W4HE1YP0b == "Disagree", 2,
+  W4HE1YP0a == "Disagree" | W4HE1YP0b == "Agree", 3,
+  W4HE1YP0a == "Strongly disagree" | W4HE1YP0b == "Strongly agree", 4
+)][, W4HE1YP := factor(W4HE1YP, levels = 1:4, 
+                       labels = c("Strongly agree", "Agree", "Disagree",
+                                  "Strongly disagree"))]
+
+heCols2 <- c("W4HE1YP", heCols[-c(1,2)])
+
+# background characteristics
+xVars <- c(
+  # YP characteristics
+  "ethGrp", "female", "numAlev17",
+  # Family background
+  "parInc"
+)
+
+# subjective expectations / beliefs
+zVars <- c(benefitCols, costCols, debtAttCols, heCols2)
+
+formula_degree_z <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(zVars), collapse = ' + '))
+) 
+
+formula_degree <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(xVars, zVars), collapse = ' + '))
+)
+
+logit_degree <- glm(
+  formula = formula_degree,
+  family = binomial(),
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(logit_degree)
+
+dtLogitDegree <- as.data.table(summary(logit_degree)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLogitDegree[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLogitDegree, 
+       mapping = aes(
+         x = rn, y = Estimate, fill = question,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_col() + 
+  geom_errorbar(alpha = .3, width = .3) +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  scale_fill_discrete(name = NULL, limits = c("W4Benefits", "W4Costs"),
+                      labels = c("Advantages", "Disadvantages")) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15)) +
+  coord_cartesian(ylim = c(-3,3))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/costBenefitLogit.png",
+  width = 10, height = 6
+)
+
+debtAttVars <- dtLogitDegree$rn[dtLogitDegree$rn %like% "Debtatt"]
+heVars2 <- dtLogitDegree$rn[dtLogitDegree$rn %like% "HE"]
+
+debtAttLabels <- c("Degree=better pay", "Owing money bad", "Borrow OK", 
+              "Debt traps you", "Student loans=cheap money", "Debt -> no uni")
+
+names(debtAttLabels) <- debtAttCols
+
+heLabels2 <- c("Not need 4 job", "Uni = best jobs", "Friends go uni", 
+               "Uni not 4 ppl like me")
+
+dtLogitDegree[, c("question", "answer") := tstrsplit(rn, "YP")]
+
+dtLogitDegree[, qLabel := c(rep(NA, 16), benefitLabels, costLabels, 
+            rep(debtAttLabels, each = 3), rep(heLabels2, each = 3)
+            )]
+
+ggplot(data = dtLogitDegree, 
+       mapping = aes(
+         x = rn, y = Estimate, colour = qLabel,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_point() + geom_linerange(alpha = .3) +
+  scale_x_discrete(name = "Response", 
+                   limits = c(debtAttVars, heVars2),
+                   labels = c(rep(c("Agree", "Disagree", "Str. disagree"), 
+                                  length(debtAttCols)), 
+                              rep(c("Agree", "Disagree", "Str. disagree"), 
+                                  length(heCols2)))) +
+  scale_color_manual(name = "Statement", # discrete = TRUE,
+                     limits = c(debtAttLabels, heLabels2),
+                     values = colorblind_palette) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1)) +
+  coord_cartesian(ylim = c(-3, 3))
+
+
+ggplot(data = dtLogitDegree, 
+       mapping = aes(
+         x = qLabel, y = Estimate, fill = answer,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_col(position = position_dodge(width = 1)) + 
+  geom_errorbar(alpha = .3, position = position_dodge(width = 1), width = .3) +
+  scale_fill_discrete(name = "Response", limits = c("Agree", "Disagree",
+                                                     "Strongly disagree")) +
+  scale_x_discrete(name = "Statement", 
+                   labels = function(x) stringr::str_wrap(x, width = 10),
+                   limits = c(debtAttLabels, heLabels2)) +
+  theme_bw() + 
+  theme(legend.position = c(.3, .9), legend.direction = "horizontal") +
+  coord_cartesian(ylim = c(-3, 3))
+
+ggsave(
+  filename = "/home/opmc/Dropbox/work/UkHeExp/tex/fig/ReducedForm/attitudesLogit.png",
+  width = 10, height = 6
+)
+```
+
+```{r logit only z}
+# only z vars
+
+logit_degreeZ <- glm(
+  formula = formula_degree_z,
+  family = binomial(),
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(logit_degreeZ)
+
+dtLogitDegreeZ <- as.data.table(summary(logit_degreeZ)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLogitDegreeZ[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLogitDegreeZ, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15)) +
+  coord_cartesian(ylim = c(-3,3))
+
+```
+
+
+## Using LASSO (via `glmnet`) to select variables
+
+```{r logit via glmnet, eval = FALSE}
+
+# load glmnet package
+library(glmnet)
+
+# recode W4HE1YP0a and W4HE1YP0b
+dtLsype[, W4HE1YP := fcase(
+  W4HE1YP0a == "Strongly agree" | W4HE1YP0b == "Strongly disagree", 1,
+  W4HE1YP0a == "Agree" | W4HE1YP0b == "Disagree", 2,
+  W4HE1YP0a == "Disagree" | W4HE1YP0b == "Agree", 3,
+  W4HE1YP0a == "Strongly disagree" | W4HE1YP0b == "Strongly agree", 4
+)][, W4HE1YP := factor(W4HE1YP, levels = 1:4, 
+                       labels = c("Strongly agree", "Agree", "Disagree",
+                                  "Strongly disagree"))]
+
+heCols2 <- c("W4HE1YP", heCols[-c(1,2)])
+
+# background characteristics
+xVars <- c(
+  # YP characteristics
+  "ethGrp", "female", "numAlev17",
+  # Family background
+  "parInc"
+)
+
+# subjective expectations / beliefs
+zVars <- c(benefitCols, costCols, debtAttCols, heCols2)
+
+formula_degree_z <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(zVars), collapse = ' + '))
+) 
+
+formula_degree <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(xVars, zVars), collapse = ' + '))
+)
+
+# set up model frame ("dt") and matrix ("x") for use with glmnet()
+dt <- model.frame(
+  formula = formula_degree,
+  data = dtLsype
+)
+
+x <- model.matrix(
+  object = formula_degree,
+  data = dt
+)[, -1]
+
+y <- dt$degree
+
+# run glmnet with cross-validation (to suggest lambda values)
+cvFit_glmnet <- cv.glmnet(
+  x = x, y = y,
+  family = "binomial"
+)
+
+# plot results of cv
+plot(cvFit_glmnet)
+
+# print "best" lambda
+cvFit_glmnet$lambda.min
+
+# coefficients for "best" lambda
+coef(cvFit_glmnet, s = "lambda.min")
+
+# coefficients for "one-standard-error" lambda
+coef(cvFit_glmnet, s = "lambda.1se")
+```
+
+### Manual cross-validation to vary alpha
+
+```{r cv for alpha}
+
+foldid <- sample(1:10, size = length(y), replace = TRUE)
+cv1  <- cv.glmnet(x, y, family = "binomial", foldid = foldid, alpha = 1)
+cv.5 <- cv.glmnet(x, y, family = "binomial", foldid = foldid, alpha = .5)
+cv0  <- cv.glmnet(x, y, family = "binomial", foldid = foldid, alpha = 0)
+
+# produce plots
+par(mfrow = c(2,2))
+plot(cv1); plot(cv.5); plot(cv0)
+plot(log(cv1$lambda), cv1$cvm , pch = 19, col = "red",
+     xlab = "log(Lambda)", ylab = cv1$name)
+points(log(cv.5$lambda), cv.5$cvm, pch = 19, col = "grey")
+points(log(cv0$lambda) , cv0$cvm , pch = 19, col = "blue")
+legend("topleft", legend = c("alpha = 1", "alpha = 0.5", "alpha = 0"),
+       pch = 19, col = c("red","grey","blue"))
+
+
+# coefficients for "best" lambda and "one-standard-error" lambda
+dtCv <- as.data.table(as.matrix(
+  cbind(
+    coef(cv1, s = "lambda.min"), coef(cv.5, s = "lambda.min"), 
+      coef(cv1, s = "lambda.1se"), coef(cv.5, s = "lambda.1se")
+    )), keep.rownames = T)
+
+setnames(dtCv, old = 1:5, new = c("varName", "a1_lmin", "a.5_lmin", "a1_l1se", "a.5_l1se"))
+```
+
+## Using `step` to select variables by step-wise selection
+
+```{r }
+
+logit_degree <- glm(
+  formula = formula_degree,
+  family = binomial(),
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T][complete.cases(
+                     dtLsype[
+                       mainAct17 == "Going to a school or college full time" & 
+                         inSubSample == T, .SD, .SDcols = c("degree", xVars, zVars)]
+                     )]
+)
+
+logit_degree_step <- step(logit_degree, direction = "both")
+```

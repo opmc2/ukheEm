@@ -1,0 +1,359 @@
+---
+title: "Initial analysis: Millennium Cohort Study Sweep 7 (MCS7)"
+output: rmarkdown::html_vignette
+bibliography: ukhe.bib
+vignette: >
+  %\VignetteIndexEntry{desc_analysis_mcs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.dim = c(10, 6),
+  out.width = "100%"
+)
+
+```
+
+```{r setup}
+# library(ukheEm)
+
+devtools::load_all()
+library(ggplot2)
+
+data(mcs7, mcs7Labels)
+
+```
+
+This vignette contains my initial descriptive analysis of the Millennium Cohort Study Sweep 7 (MCS7) data. I am focusing on questions relating to university, and specifically on expectations about (attending) university. I am unsure whether this will become a main dataset I use in my paper on the factors affecting university attendance, or whether I will use it mainly as a robustness check of my method. 
+
+# The Millennium Cohort Study (MCS)
+
+The MCS follows around 19,000 young people born across the UK in 2000-2002. The MCS sample is representative: it used a stratified, clustered random sample design, with oversampling from key demographics of interest (e.g. disadvantaged groups and ethic minorities). The cohort members (CMs) and their families were interviewed at regular intervals to capture the CM's physical, socio-emotional, cognitive and behavioural development. Data is also collected on their family background and other aspects of their lives [@fitzsimons_e_millennium_2020]. Administrative data (mainly educational for now) has been linked and is available under secure access (which I currently do not have!). The sweeps began in 2001 (when the CMs were on average 9 months old) and were repeated at ages 3, 5, 7, 11, 14 and the most recent was at 17 (which I focus on here). 
+
+## Sweep 7 
+
+The main components of sweep 7 are [@fitzsimons_e_millennium_2020]:
+- A household interview (conducted with a resident parent if they were willing and able to do so, or with the cohort member themselves if no such parent was available)
+- interview CAPI (computer-assisted personal interview) with the cohort member, including a section asking for permission to carry out various administrative data linkages
+- a self-completion (CASI) interview with the cohort members conducted in the household
+- cognitive assessment (number activity) for cohort member completion of a paper Strengths and Difficulties questionnaire (SDQ) by one parent
+- completion of the SDQ by the cohort member for the first time (done in CASI)
+- physical measurements of the cohort member
+- an online questionnaire for each of the parents
+- an online questionnaire for the young person (completed after the main interview, CAWI).
+
+I am most interested in a section of the online questionnaire completed by cohort members entitled "Learning and the future", which collected information on:
+- *Likelihood of attending university* and *main* reason why and/or why not
+- Understanding of the *cost* of university
+- Understanding of *student loans*
+- Effect of university attendance on *getting a job* and *earnings* (expectations)
+- Job at age 30 (expectations)
+- Life achievements at age 30 (expectations)
+
+Other interesting sections of the online questionnaire: 
+- risk and time preferences
+- risky behaviours
+- self-control
+- personality and attitudes
+- life and wellbeing
+
+Data was also collected on education and schooling within the CM interviews (as well as linked admin data) but I am unsure if I have access to this information.
+
+
+# Descriptive analysis
+
+## "Learning and the future"
+
+The CMs were asked a number of questions about university and their future life and careers. The questions and their responses are presented in the following plots.
+
+### University attendance
+
+```{r university attendance, echo=FALSE}
+
+ggplot(data = mcs7$cm_interview, 
+       mapping = aes(x = GCUNIQ00)) +
+  geom_bar() + 
+  scale_x_discrete(name = "Are you currently studying at university? [GCUNIQ00]") +
+  theme_bw() +
+  theme(text = element_text(size = 15))
+
+```
+### Likelihood of attending university
+
+Those students not currently at university were asked about their likelihood of attending.
+
+```{r university attendance prob, echo=FALSE}
+
+ggplot(data = mcs7$cm_interview, 
+       mapping = aes(x = fcase(GCSTYR00 >= 0, GCSTYR00))) +
+  geom_histogram(bins = 100) +
+  # geom_line(stat = "density") +
+  scale_x_continuous(name = "Likelihood (0-100%)") +
+  labs(subtitle = "How likely (0-100%) do you think it is that you will go to university? [GCSTYR00]") +
+  theme_bw()
+
+```
+
+### Main reason for attending university
+
+Students who reported a positive probability of attending were asked their main reason for attending.
+
+```{r university attendance reasons, echo=FALSE}
+
+ggplot(data = mcs7$cm_interview[GCREUN00 != "Not Applicable"], 
+       mapping = aes(y = GCREUN00)) +
+  geom_bar() +
+  # geom_line(stat = "density") +
+  scale_y_discrete(name = NULL, labels = label_wrap_gen(width = 40)) +
+  labs(subtitle = "What is the main reason why you might or will go to university? [GCREUN00]") +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 1),
+        text = element_text(size = 14))
+
+```
+
+```{r university non-attendance reasons, echo=FALSE}
+
+ggplot(data = mcs7$cm_interview[GCSTUN00 != "Not Applicable"], 
+       mapping = aes(y = GCSTUN00)) +
+  geom_bar() +
+  scale_y_discrete(name = NULL, labels = label_wrap_gen(width = 75)) +
+  labs(subtitle = "What is the main reason why you might not or will NOT go to university? [GCSTUN00]") +
+  theme_bw() +
+  theme(plot.subtitle = element_text(hjust = 1),
+        text = element_text(size = 13))
+
+```
+
+### Cost(s) of university attendance
+
+```{r university attendance cost, echo=FALSE}
+
+dtUniCosts <- mcs7$cm_interview[, .(MCSID, 
+                                    expCost = GCCOST00, 
+                                    probUni = fcase(GCSTYR00 >=0, GCSTYR00 / 100),
+                                    probUniF = fcase(
+                                      GCSTYR00 %between% c(0,25), "Low",
+                                      GCSTYR00 %between% c(26, 75), "Mid",
+                                      GCSTYR00 > 75, "High")
+                                    )]
+
+ggplot(data = dtUniCosts, 
+       mapping = aes(y = expCost, fill = probUniF)) +
+  geom_bar() +
+  scale_y_discrete(name = NULL) +
+  scale_fill_discrete(name = "Pr(uni)",
+                      limits = c("Low", "Mid", "High"),
+                      labels = c("<0.25", "]0.25, 0.75]", ">0.75")) +
+  labs(subtitle = "How much do you think it would cost in total to get a three-year undergraduate degree? \nInclude tuition fees and the cost of living expenses from going to university. [GCCOST00]") +
+  theme_bw() + 
+  theme(plot.subtitle = element_text(hjust = 1),
+        text = element_text(size = 15),
+        legend.position = c(.9, .5)) +
+  coord_cartesian(xlim = c(0,1500))
+
+```
+
+### Probability of employment with or without degree
+
+```{r empl prob uni}
+
+dtEmpProb <- melt(
+  mcs7$cm_interview, 
+  id.vars = "MCSID",
+  measure.vars = c("GCPDJA00", "GCPDJB00")
+)
+
+ggplot(data = dtEmpProb,
+       mapping = aes(x = value, fill = variable)) +
+  geom_histogram(bins = 100) +
+  scale_x_continuous(name = "How likely (0-100%) do you think it is that you will be in a paid job when you are 30 \n if you (A) don't go to university? (B) do go to university? [GCPDJA/B00]") +
+  scale_fill_discrete(name = NULL, 
+                      limits = c("GCPDJA00", "GCPDJB00"),
+                      labels = c("No degree", "Degree")) +
+  theme_bw() +
+  theme(legend.position = c(.9,.9),
+        text = element_text(size = 15))
+
+```
+
+### Expected earnings with or without a degree
+
+```{r university attendance earning, echo=FALSE}
+
+dtEarn30 <- melt(
+  mcs7$cm_interview[GCEARN00 %between% c(1e3, 1e6) & 
+                      GCERNU00 %between% c(1e3, 1e6),
+                    .(MCSID, GCEARN00, GCERNU00, 
+                      probUniF = fcase(
+                                      GCSTYR00 %between% c(0,25), "<0.25",
+                                      # GCSTYR00 %between% c(26, 75), "Mid",
+                                      GCSTYR00 > 75, ">0.75"))], 
+  id.vars = c("MCSID", "probUniF"),
+  measure.vars = c("GCEARN00", "GCERNU00")
+)
+
+ggplot(data = dtEarn30[!is.na(probUniF)]) +
+  geom_density(mapping = aes(x = value, colour = variable),
+               adjust = 1.7) +
+  scale_x_log10(name = "Expected annual wage at 30 (GBP, log-scale)", 
+                label = scales::comma) +
+  labs(subtitle = "If you have a paid job at the age of 30, what is your best estimate of how much you might be earning per year \n if you (EARN) don't go to university? (ERNU) do go to university? [GCEARN/ERNU00]") +
+  scale_colour_discrete(name = NULL, 
+                      limits = c("GCEARN00", "GCERNU00"),
+                      labels = c("No degree", "Degree")) +
+  facet_wrap(vars(probUniF)) +
+  theme_bw() +
+  theme(legend.position = c(.1,.9),
+        text = element_text(size = 15))
+
+```
+### Expected graduate premium (ERNU - EARN)
+
+```{r grad premium, echo=FALSE}
+
+ggplot(data = mcs7$cm_interview[GCEARN00 %between% c(1.8e3, 1.3e5) & 
+                      GCERNU00 %between% c(1.8e3, 1.3e5)]) +
+  geom_density(mapping = aes(x = GCERNU00 - GCEARN00),
+               adjust = 1.5) +
+  scale_x_continuous(name = "Expected graduate premium (GBP)",
+                     labels = scales::comma) + 
+  labs(subtitle = "Expected graduate premium at 30: the difference in expected earnings at age 30 with and without a degree") +
+  theme_bw() +
+  coord_cartesian(xlim = c(-5e4, 1e5))
+
+dtGradPrem <- mcs7$cm_interview[GCEARN00 %between% c(1.8e3, 1.3e5) & 
+                                  GCERNU00 %between% c(1.8e3, 1.3e5), 
+                                .(MCSID, 
+                                  gradPrem = GCERNU00 - GCEARN00,
+                                  probUniF = fcase(
+                                      GCSTYR00 %between% c(0,25), "Low",
+                                      GCSTYR00 %between% c(26, 75), "Mid",
+                                      GCSTYR00 > 75, "High"))]
+
+
+ggplot(data = dtGradPrem[probUniF %in% c("Low", "High")]) +
+  geom_density(mapping = aes(x = gradPrem, colour = probUniF),
+               adjust = 1.5) +
+  scale_x_continuous(name = "Expected graduate premium (GBP)",
+                     labels = scales::comma) + 
+  scale_colour_discrete(name = "Pr(uni)", 
+                        limits = c("Low", "High"),
+                        labels = c("<0.25", ">0.75")) +
+  labs(subtitle = "Expected graduate premium at 30 by stated likelihood of attending university") +
+  theme_bw() +
+  coord_cartesian(xlim = c(-5e4, 1e5))
+
+```
+
+## Risk and time preferences
+
+### Risk preferences
+
+CMs are asked to report their preferences over the following lotteries:
+
+Variable  | Choice 1               | Choice 2
+ :---     | :---                   | :---
+RSKA      | a 50-50 chance of £240 |  £132 for certain
+RSKB      | a 50-50 chance of £240 |  £120 for certain
+RSKC      | a 50-50 chance of £240 |  £108 for certain
+RSKD      | a 50-50 chance of £240 |  £96 for certain
+RSKE      | a 50-50 chance of £240 |  £84 for certain
+RSKF      | a 50-50 chance of £240 |  £72 for certain
+RSKG      | a 50-50 chance of £240 |  £60 for certain
+RSKH      | a 50-50 chance of £240 |  £48 for certain 
+RSKI      | a 50-50 chance of £240 |  £36 for certain 
+RSKJ      | a 50-50 chance of £240 |  £24 for certain
+  ---     | ---                    | ---
+  
+```{r risk preferences, echo=FALSE}
+
+dtRisk <- mcs7$cm_interview[, colSums(.SD == "A 50-50 chance of £240", 
+                                      na.rm = T), 
+                            .SDcols = paste0("GCRSK", LETTERS[1:10], "00")]
+
+dtRisk2 <- mcs7$cm_interview[
+  , 
+  lapply(.SD, function(x) as.numeric(x) <= 3),
+  .SDcols = paste0("GCRSK", LETTERS[1:10], "00")
+][, colSums(.SD, na.rm = T)]
+
+risks4Plot <- 1 - dtRisk / dtRisk2
+
+dtRisks4Plot <- data.table(var = names(risks4Plot), 
+                           percent = risks4Plot,
+                           N = dtRisk2,
+                           certainValue = c(
+                             132, 120, 108, 96, 84, 72, 60, 48, 36, 24
+                           ))
+
+ggplot(data = dtRisks4Plot, 
+       mapping = aes(x = certainValue, y = percent)) +
+  geom_col() +
+  geom_line(aes(y = N / 8000)) +
+  scale_x_continuous(
+    name = "Percent choosing certain value (£x) over 50-50 chance of £240",
+    breaks = seq(0, 132, by = 12)
+  ) +
+  theme_bw()
+
+```
+
+### Time preferences 
+
+CMs are asked to report their preferences over the following future payments:
+
+Variable  | Choice 1          | Choice 2
+ :---     | :---              | :---
+PRFA      | £50 in two months |  £50 in four months  
+PRFB      | £50 in two months |  £52 in four months 
+PRFC      | £50 in two months |  £55 in four months 
+PRFD      | £50 in two months |  £60 in four months 
+PRFE      | £50 in two months |  £70 in four months 
+PRFF      | £50 in two months |  £80 in four months 
+PRFG      | £50 in two months |  £90 in four months 
+PRFH      | £50 in two months |  £100 in four months 
+PRFI      | £50 in two months |  £120 in four months 
+PRFJ      | £50 in two months |  £150 in four months
+  ---     | ---               | ---
+  
+```{r time preferences, echo=FALSE}
+
+dtPrf <- mcs7$cm_interview[, colSums(.SD == "£50 in two months", 
+                                      na.rm = T), 
+                            .SDcols = paste0("GCPRF", LETTERS[1:10], "00")]
+
+dtPrf2 <- mcs7$cm_interview[
+  , 
+  lapply(.SD, function(x) as.numeric(x) <= 3),
+  .SDcols = paste0("GCPRF", LETTERS[1:10], "00")
+][, colSums(.SD, na.rm = T)]
+
+prf4Plot <- 1 - dtPrf / dtPrf2
+
+dtPrf4Plot <- data.table(var = names(prf4Plot), 
+                         percent = prf4Plot,
+                         N = dtPrf2,
+                         value4mnth = c(
+                           50, 52, 55, 60, 70, 80, 90, 100, 120, 150
+                         ))
+
+ggplot(data = dtPrf4Plot, 
+       mapping = aes(x = value4mnth, y = percent)) +
+  geom_col() +
+  geom_line(aes(y = N / 8000), linetype = "dashed") +
+  scale_x_continuous(
+    name = "Amount offered in 4 months (X)",
+    breaks = seq(0, 150, by = 10)
+  ) +
+  scale_y_continuous(name = NULL, 
+                     sec.axis = sec_axis(trans = ~.*8000, 
+                                         name = "Number of respondents")) +
+  labs(subtitle = "Percent choosing £X in 4 months over £50 in two months") +
+  theme_bw()
+
+```
