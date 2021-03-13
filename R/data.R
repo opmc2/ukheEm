@@ -148,3 +148,36 @@
 #' }
 #' @source See \code{bcs70}.
 "binnedDataExample"
+
+#' Data collected in the seventh wave of the Millennium Cohort Study
+#'
+#' A list of 8 data.tables containing the information collected in the
+#'
+#' @format A named list of 8 data.tables. The unique common identifier is
+#' \code{MCSID}. The tables are:
+#' \describe{
+#'   \item{cm_cognitive_assessment}{Results of cognitive tests taken by cohort
+#'     members (CM)}
+#'   \item{cm_derived}{Derived variables from CM data}
+#'   \item{cm_interview}{Variables from CM interview}
+#'   \item{family_derived}{Derived variables from family interview}
+#'   \item{family_interview}{Responses to the family interview}
+#'   \item{hhgrid}{Data from the household grid}
+#'   \item{parent_cm_interview}{Responses parent/CM joint interview}
+#'   \item{parent_interview}{Responses parent interview}
+#' }
+#' @source \url{https://beta.ukdataservice.ac.uk/datacatalogue/series/series?id=2000031}
+"mcs7"
+
+#' Variable labels for \code{mcs7}
+#'
+#' A list of 8 data.tables containing labels for the variables in \code{mcs7}.
+#'
+#' @format A list of 8 data.tables. Each contains the following two variables:
+#' \describe{
+#'   \item{varName}{The name of the variable in \code{mcs7}}
+#'   \item{varLabel}{The corresponding variable label containing additional
+#'     information}
+#' }
+#' @source \url{https://beta.ukdataservice.ac.uk/datacatalogue/series/series?id=2000031}
+"mcs7Labels"
