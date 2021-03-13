@@ -142,6 +142,7 @@ costLabels <- c(
   "Don't know", "No answer"
 )
 
+names(benefitLabels) <- benefitCols
 names(costLabels) <- costCols
 
 dtBenefits <- dtLsype[inSubSample == T, 
@@ -202,10 +203,40 @@ xVars <- c(
 
 zVars <- c(benefitCols, costCols)
 
+formula_degree_z <- as.formula(
+  paste0('degree ~ ', 
+         paste0(c(zVars), collapse = ' + '))
+) 
+
 formula_degree <- as.formula(
   paste0('degree ~ ', 
          paste0(c(xVars, zVars), collapse = ' + '))
 )
+
+lpm_degree_z <- lm(
+  formula = formula_degree_z,
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(lpm_degree_z)
+
+dtLpmDegreeZ <- as.data.table(summary(lpm_degree_z)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmDegreeZ[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmDegreeZ, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
 
 lpm_degree <- lm(
   formula = formula_degree,
@@ -215,7 +246,22 @@ lpm_degree <- lm(
 
 summary(lpm_degree)
 
-coefplot::coefplot(lpm_degree)
+dtLpmDegree <- as.data.table(summary(lpm_degree)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmDegree[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmDegree, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
 
 ```
 
@@ -234,7 +280,22 @@ lpm_plan2apply <- lm(
 
 summary(lpm_plan2apply)
 
-coefplot::coefplot(lpm_plan2apply)
+dtLpmPlan <- as.data.table(summary(lpm_plan2apply)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLpmPlan[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLpmPlan, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15))
 
 ```
 
@@ -254,6 +315,51 @@ logit_degree <- glm(
 
 summary(logit_degree)
 
-coefplot::coefplot(logit_degree)
+dtLogitDegree <- as.data.table(summary(logit_degree)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLogitDegree[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLogitDegree, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15)) +
+  coord_cartesian(ylim = c(-3,3))
+
+# only z vars
+
+logit_degreeZ <- glm(
+  formula = formula_degree_z,
+  family = binomial(),
+  data = dtLsype[mainAct17 == "Going to a school or college full time" &
+                   inSubSample == T]
+)
+
+summary(logit_degreeZ)
+
+dtLogitDegreeZ <- as.data.table(summary(logit_degreeZ)$coefficients, 
+                             keep.rownames = TRUE)
+
+dtLogitDegreeZ[, rn := stringr::str_remove(rn, "Mentioned")]
+
+ggplot(data = dtLogitDegreeZ, 
+       mapping = aes(
+         x = rn, y = Estimate,
+         ymin = Estimate - qt(.025, 2162, lower.tail = FALSE) * `Std. Error`,
+         ymax = Estimate + qt(.025, 2162, lower.tail = FALSE) * `Std. Error`
+       )) +
+  geom_pointrange() +
+  scale_x_discrete(name = "Variable", limits = c(benefitCols, costCols), 
+                   labels = c(benefitLabels, costLabels)) +
+  theme_bw() + theme(axis.text.x = element_text(angle=45, hjust  = 1), 
+                     legend.position = c(.9, .15)) +
+  coord_cartesian(ylim = c(-3,3))
 
 ```
