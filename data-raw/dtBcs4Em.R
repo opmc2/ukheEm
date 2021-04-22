@@ -7,6 +7,10 @@ library(data.table)
 # load ukheEm (including bcs70 data)
 # library(ukheEm)
 
+# load data
+load(here("data/bcs70.rda"))
+load(here("data/bcs70labels.rda"))
+
 # list of variables to be possible instruments
 workVars <- bcs70labels$bcs1986x[varNames %like% "^c5a", varNames]
 names(workVars) <- bcs70labels$bcs1986x[varNames %like% "^c5a", varLabels]
