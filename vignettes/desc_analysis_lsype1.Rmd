@@ -55,6 +55,8 @@ dtLsype <- merge(
                     numAlev17 = relevel(factor(W4AlevNoYP), ref = 3),
                     finSuppUni = W4SupConfYP,
                     grantElig = W4GrantElYP,
+                    att2debt = W4debtattYP,
+                    att2schl = W4schatYP,
                     plan2applyHe = fcase(
                       W4Heposs9YP %in% c("Very likely", "Fairly likely"), T,
                       W4Heposs9YP %in% c("Not very likely", 
@@ -706,6 +708,27 @@ ggplot(
 
 All "high-achieving" CMs were asked about the costs of attending university, and in particular, their attitude towards debt. 
 
+### Overall 
+
+```{r attitude 2 debt}
+
+# create grob to add labels
+library(grid)
+text_positive <- textGrob("More positive", gp=gpar(fontsize=10))
+text_negative <- textGrob("More negative", gp=gpar(fontsize=10))
+
+ggplot(data = dtLsype,
+       mapping = aes(x = att2debt)) +
+  geom_density(adjust = 1.6) +
+  theme(plot.margin = unit(c(1,1,2,1), "lines")) +
+  annotation_custom(text_positive,xmin=23,xmax=23,ymin=-0.02,ymax=-0.02) + 
+  annotation_custom(text_negative,xmin=2,xmax=2,ymin=-0.02,ymax=-0.02) +
+  scale_x_continuous(name = "Attitude towards debt") +
+  coord_cartesian(clip = "off") +
+  theme_bw()
+
+```
+
 ### University leads to better pay
 
 > *"Getting a degree will mean you get better paid jobs later on in life. Do you..."*
@@ -844,6 +867,27 @@ ggplot(data = dtLsype,
 
 ```
 Although the majority of the CMs accepted to complete the self-completion questionnaire, they generally did not answer usefully the questions on fate...
+
+## Attitude towards school 
+
+```{r attitude 2 school}
+
+# create grob to add labels
+library(grid)
+text_positive <- textGrob("More positive", gp=gpar(fontsize=10))
+text_negative <- textGrob("More negative", gp=gpar(fontsize=10))
+
+ggplot(data = dtLsype,
+       mapping = aes(x = att2schl)) +
+  geom_density(adjust = 1.6) +
+  theme(plot.margin = unit(c(1,1,2,1), "lines")) +
+  annotation_custom(text_positive,xmin=18,xmax=18,ymin=-0.02,ymax=-0.02) + 
+  annotation_custom(text_negative,xmin=2,xmax=2,ymin=-0.02,ymax=-0.02) +
+  scale_x_continuous(name = "Attitude towards school") +
+  coord_cartesian(clip = "off") +
+  theme_bw()
+
+```
 
 ## Attitude towards higher education
 
