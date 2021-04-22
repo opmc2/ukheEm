@@ -29,6 +29,7 @@
 #' @param varList A named vector of the key variables in the model. The names
 #'   should be:
 #'   \itemize{
+#'     \item \code{id}: a unique id for each individual
 #'     \item \code{y1}: the pre-treatment outcome
 #'     \item \code{y2}: the post-treatment outcome (log-wages)
 #'     \item \code{z}: the instrument
@@ -55,23 +56,32 @@
 #'   \item{\code{dtLong}}{The final data.table where calculations took place
 #'     including the final parameters and intermediate values.}
 #' }
-# #' @example examples/progUkheEm_ex1.R
+# #' @example examples/progUkheEm_BcsExample.R
+# #' @example examples/progUkheEm_LsypeExample.R
 progUkheEm <- function(
   dt, K, varList,
   startVals = "kmeans",
   maxiter = 400,
-  y1cont = T
+  y1cont = TRUE
 ) {
 
   if (is.character(dt)) dt <- readRDS(here::here(dt))
 
-  setnames(dt, old = varList, new = names(varList))
+  cols2keep <- varList
+
+  dt <- dt[, ..cols2keep]
+  names(dt) <- names(varList)
+  dt <- dt[complete.cases(dt)]
 
   NN <- dt[, .N]
 
   # set start values
   if (is.character(startVals)) {
-    if(startVals == "kmeans") startVals <- kmeansSVs(dt, K, y1cont = y1cont)
+    if(startVals == "kmeans" & isTRUE(y1cont)) {
+      startVals <- kmeansSVs(dt[, .(y1, y2)], K, y1cont = TRUE)
+    } else if (startVals == "kmeans") {
+      startVals <- kmeansSVs(dt[, .(left, right, y2)], K, y1cont = FALSE)
+    }
   }
 
   dt[, svType := startVals$svTypes]
