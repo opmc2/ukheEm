@@ -1,8 +1,17 @@
-# clean data in lsype1 for use in EM algorithm
+## --------------------------------------------------------------------------- #
+## dtLsype4Em.R
+##
+## Project: UkheEm
+## Purpose: Prepares Lsype data on which to run `progUkheEm()`
+## Author: Oliver Cassagneau-Francis
+## Date: Tue Apr 20 19:07:36 2021
+## --------------------------------------------------------------------------- #
+## Notes:
 
 # load packages
 library(here)
 library(data.table)
+library(magrittr)
 
 # load data
 load(here("data/lsype1YP.rda"))
@@ -13,44 +22,60 @@ lsype1FB <- lapply(lsype1FB, as.data.table)
 lsype1YP <- lapply(lsype1YP, as.data.table)
 
 # select variables and merge waves FB1&4 and YP1&4
-dtLsypeWv4Wv8 <- merge(
+dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
+  NSID,
+  annualIncomeMP_w1 = W1inc1estMP,
+  annualIncomeMP_topBand_w1 = W1inc2estMP,
+  annualIncomeHH_w1 = W1inc1est,
+  contAnnIncHH_w1 = W1GrssyrHH
+)] %>%
   merge(
-    merge(
-      lsype1FB[[1]][, .(NSID,
-                            annualIncomeMP_w1 = W1inc1estMP,
-                            annualIncomeMP_topBand_w1 = W1inc2estMP,
-                            annualIncomeHH_w1 = W1inc1est,
-                            contAnnIncHH_w1 = W1GrssyrHH)],
-      lsype1FB[[4]][, .(NSID, annualIncomeHH_w4 = W4Inc1EstMP)],
-      by = c("NSID"), all = TRUE
-    ),
-    lsype1YP[[4]][, .(NSID, att2Debt16 = W4debtattYP, att2Schl16 = W4schatYP,
-                          infoStudFin16 = W4SupConfYP, sex = W4SexYP,
-                          likeY11 = W4YelevenYP,
-                          mainAct16 = W4MainActYP)],
+    lsype1FB[[4]][, .(
+      NSID,
+      annualIncomeHH_w4 = W4Inc1EstMP
+    )],
     by = c("NSID"), all = TRUE
-  ),
-  lsype1YP[[8]][, .(NSID, grssWkPay25 = W8GROW, degree25 = W8DDEGP,
-                        mainAct25 = W8DACTIVITY,
-                        mainAct25_backcoded = W8DACTIVITYC)],
-  by = c("NSID"), all = TRUE
-)
+  ) %>%
+  merge(
+    lsype1YP[[4]][, .(
+      NSID, att2Debt16 = W4debtattYP,
+      att2Schl16 = W4schatYP,
+      infoStudFin16 = W4SupConfYP, sex = W4SexYP,
+      likeY11 = W4YelevenYP,
+      leaveHomeGd = W4BenefitsYP0h, leaveHomeBad = W4CostsYP0k,
+      mainAct16 = W4MainActYP
+    )], by = c("NSID"), all = TRUE
+  ) %>%
+  merge(
+    lsype1YP[[8]][, .(
+      NSID, grssWkPay25 = W8GROW, degree25 = W8DDEGP,
+      mainAct25 = W8DACTIVITY,
+      mainAct25_backcoded = W8DACTIVITYC
+    )],
+    by = c("NSID"), all = TRUE
+  )
 
 # drops observations with missing data
 dtLsypeNoMissing <- dtLsypeWv4Wv8[
-  !(is.na(degree25) | is.na(grssWkPay25) | is.na(likeY11) |
-      is.na(mainAct16) | is.na(mainAct25) | is.na(contAnnIncHH_w1))
+  !is.na(degree25) & !is.na(grssWkPay25) & !is.na(contAnnIncHH_w1)
 ]
 
 # rename and log outcome variables y1 and y2
-dtLsypeNoMissing[, c("y1", "y2") := .(log(contAnnIncHH_w1), log(grssWkPay25))]
+dtLsypeNoMissing[, c("logParInc", "logWkPay") := .(log(contAnnIncHH_w1), log(grssWkPay25))]
 
 # only keep those with non-missing and finite outcomes
-dtLsype4Em <- dtLsypeNoMissing[!is.na(y1) & !is.na(y2) & is.finite(y1) &
-                                 is.finite(y2)]
+dtLsype4Em <- dtLsypeNoMissing[!is.na(logParInc) & !is.na(logWkPay) &
+                                 is.finite(logParInc) & is.finite(logWkPay)]
+
+dtLsype4Em[, leaveHome := fcase(
+  leaveHomeGd == leaveHomeBad, 2,
+  leaveHomeGd == "Mentioned", 3,
+  leaveHomeBad == "Mentioned", 1
+)]
+
+dtLsype4Em[, leaveHome := factor(leaveHome,
+                                 levels = 1:3,
+                                 labels = c("Bad", "Neutral", "Good"))]
 
 # save to /data
 use_data(dtLsype4Em, overwrite = TRUE)
-
-# save as .rds to \data to use in examples and functions
-saveRDS(dtLsype4Em, file = here("data/dtLsype4Em.rds"))
