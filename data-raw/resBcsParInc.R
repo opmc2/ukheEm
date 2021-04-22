@@ -10,7 +10,7 @@
 
 # load packages
 # library(ukheEm)
-load_all()
+devtools::load_all()
 
 # call progUkheEm() on BCS data using test score as y1
 resBcsParInc <- list()
