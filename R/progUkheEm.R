@@ -154,40 +154,26 @@ progUkheEm <- function(
 
 
 
-    # update bk and gamma
+    # pi(k,z,d)
 
-    modelS <- glm(
-      formula = d ~ type + z - 1,
-      family = binomial(link = "logit"),
-      data = dtLong,
-      weights = pk
-    )
-
-    coeffS <- coefficients(modelS)
-
-    for (k in 1:K) {
-      dtLong[type == paste0(k), bk := coeffS[paste0("type", k)]]
-    }
-
-    for (val in levels(dtLong[, z])) {
-      dtLong[z == val, gamma := coeffS[paste0("z", val)]]
-    }
-    dtLong[is.na(gamma), gamma := 0]
-
-    dtLong[, Ps1_kz := fitted.values(modelS)]
-
-    # update pi(k,z)
-
-    dtLong[, pi_kz := sum(pk) / NN, by = .(type, z)]
+    dtLong[, pi_kzd := sum(pk) / NN, by = .(type, z, d)]
 
 
     # update likelihood|K
-    dtLong[, likelihoodK := pi_kz * Ps1_kz *
-             (pnorm(right, mean = mu, sd = sigmaNu) - pnorm(left, mean = mu, sd = sigmaNu)) *
-             (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
+    if (isTRUE(y1cont)) {
+      dtLong[, likelihoodK := pi_kzd *
+               dnorm(y1, mean = mu, sd = sigmaNu) *
+               1 / exp(y2) * dnorm(y2, mean = alpha, sd = sigmaEps)
+               ]
+    } else {
+      dtLong[, likelihoodK := pi_kzd *
+               (pnorm(right, mean = mu, sd = sigmaNu) - pnorm(left, mean = mu, sd = sigmaNu)) *
+               (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
+    }
+
 
     # sum likelihood|K to give likelihood
-    dtLong[, likelihood := sum(likelihoodK), by = bcsid]
+    dtLong[, likelihood := sum(likelihoodK), by = id]
 
     # save parameters and likelihoods
     listParams[[iter]] <- dtLong[, .(
@@ -195,9 +181,7 @@ progUkheEm <- function(
       alpha = mean(alpha),
       sigmaNu = mean(sigmaNu),
       sigmaEps = mean(sigmaEps),
-      pi_kz = mean(pi_kz),
-      bk = mean(bk),
-      gamma = mean(gamma)
+      pi_kzd = mean(pi_kzd)
     ), by = .(type, d, z)]
 
     listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
