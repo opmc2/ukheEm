@@ -56,7 +56,7 @@ kmeansSVs <- function(y, K, y1cont = T) {
     y[, pk := 1]
     for (k in 1:K) {
       muSigmaRes[[k]] <- optim(
-        par = ell.init(y[svType == k]),
+        par = ellInit(y[svType == k]),
         fn = function(theta) -ell(theta, x = y[svType == k])
       )
       mu[[k]] <- muSigmaRes[[k]]$par[[1]]
@@ -99,7 +99,7 @@ ell <- function(theta, x) {
 #' use with \code{\link[stats]{optim}} when performing ML.
 #'
 #' @inheritParams ell
-ell.init <- function(x) {
+ellInit <- function(x) {
   mid <- (x[, left] + x[, right]) / 2
-  c(mean(mid, na.rm = T), sd(mid))
+  c(mean(mid, na.rm = T), sd(mid, na.rm = TRUE))
 }
