@@ -123,18 +123,18 @@ progUkheEm <- function(
 
     # ---- M-step ----
 
-    # update mu and sigmaNu
+    # update mu and sigmaNu (parameters of the test score distribution)
 
     if (isTRUE(y1cont)) {
       dtLong[, c("mu", "sigmaNu") := .(Hmisc::wtd.mean(y1, pk),
                                        sqrt(Hmisc::wtd.var(y1, pk))),
-             by = .(type, d)]
+             by = .(type)]
     } else {
       muSigmaRes <- list()
       for (k in 1:K) {
         muSigmaRes[[k]] <- optim(
           par = c(muVec[[k]], sigmaNuVec[[k]]),
-          fn = function(theta) -ell(theta, x = dtLong[type == k])
+          fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
         )
         muVec[[k]] <- muSigmaRes[[k]]$par[[1]]
         sigmaNuVec[[k]] <- muSigmaRes[[k]]$par[[2]]
@@ -143,7 +143,7 @@ progUkheEm <- function(
     }
 
 
-    # update alpha and sigmaEps
+    # update alpha and sigmaEps (parameters of the wage dist. @25)
 
     dtLong[, c("alpha", "sigmaEps") := .(
       ifelse(is.na(Hmisc::wtd.mean(y2, pk)), alpha, Hmisc::wtd.mean(y2, pk)),
