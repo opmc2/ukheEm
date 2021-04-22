@@ -14,7 +14,7 @@ devtools::load_all()
 
 # call progUkheEm() on BCS data using test score as y1
 resBcsParInc <- list()
-for (K in 2:10) {
+for (K in 2:20) {
   resBcsParInc[[K]] <- progUkheEm(
     dt = dtBcs4Em,
     K = K,
@@ -26,9 +26,10 @@ for (K in 2:10) {
       z = "c5e7", # adult life benefits: live away from home
       d = "degree"
     ),
-    maxiter = 50,
+    maxiter = 400,
     y1cont = FALSE
   )
+  print(paste0("K = ", K, " completed."))
 }
 
 use_data(resBcsParInc, overwrite = TRUE)
