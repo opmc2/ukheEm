@@ -2,6 +2,7 @@ inst/doc
 
 ## data directory
 /rawData/*
+/data/*
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
