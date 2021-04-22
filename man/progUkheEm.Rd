@@ -23,6 +23,7 @@ vector in \code{varList}.}
 \item{varList}{A named vector of the key variables in the model. The names
 should be:
 \itemize{
+  \item \code{id}: a unique id for each individual
   \item \code{y1}: the pre-treatment outcome
   \item \code{y2}: the post-treatment outcome (log-wages)
   \item \code{z}: the instrument

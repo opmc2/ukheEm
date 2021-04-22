@@ -11,9 +11,16 @@ A data.table with 2,614 rows and 7 variables:
   \item{attSchl}{Reported attitude to school, z (factor, 5 levels)}
   \item{parInc}{Parental income in bins, y1 (factor, 13 levels)}
   \item{degree}{Whether the individual holds an UG degree at 25, d (logical)}
-  \item{wklypay}{Weekly pay at 25 in GBP, y2 (numeric)}
+  \item{wkPay}{Weekly pay at 25 in GBP}
+  \item{logWkPay}{log(wkPay), y2 (numeric)}
   \item{left}{The lower bound for parental income in log(GBP), y1 (numeric)}
   \item{right}{The upper bound for parental income in log(GBP), y1 (numeric)}
+  \item{mathScore}{YP's score (/60) on a maths test at 16 (numeric)}
+  \item{readScore}{YP's score (/60) on a reading test at 16 (integer)}
+  \item{combnScore}{YP's mean score (/60) if took both tests; or the one they took if one missing (numeric)}
+  \item{c5axx}{Answers to questions about working, possible z (chr)}
+  \item{c5dxx}{Answers to questions about jobs, possible z (chr)}
+  \item{c5exx}{Answers to questions about adult life, possible z (chr)}
 }
 }
 \source{
