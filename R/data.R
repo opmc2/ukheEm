@@ -46,6 +46,59 @@
 #' @source \url{https://beta.ukdataservice.ac.uk/datacatalogue/studies/study?id=5545}
 "lsype1FBlabels"
 
+#' LSYPE1 data formatted for use in \code{progUkheEm}
+#'
+#' A data.table of cleaned and formatted date ready for the EM algorithm as
+#' implemented by \code{progUkheEm}.
+#'
+#' @format A data.table of 1,584 rows and 18 variables:
+#' \describe{
+#'   \item{NSID}{Unique identifier for LSYPE cohort members (CMs)}
+#'   \item{annualIncomeMP_w1}{Main parent's annual income (and partner) in wave
+#'     1, banded (factor with 33 levels)}
+#'   \item{annualIncomeMP_topBand_w1}{Further detail if in the top band of main
+#'     parent's annual income, banded (factor with 60 levels)}
+#'   \item{annualIncomeHH_w1}{Annual income of the household in wave 1
+#'     (both parents?), banded (factor with 33 levels)}
+#'   \item{contAnnIncHH_w1}{Annual income of the household in wave 1
+#'     (both parents?), in GBP (numeric)}
+#'   \item{annualIncomeHH_w4}{Annual income of the household in wave 4
+#'     (both parents?), banded (factor with 12 levels)}
+#'   \item{att2Debt16}{CMs attitude to debt at 16, score 2-24 (numeric)}
+#'   \item{att2Schl16}{CMs attitude to school at 16, score 0-20 (numeric)}
+#'   \item{infoStudFin16}{How well informed the CM felt about student finance
+#'     at 16 (factor with 4 levels)}
+#'   \item{sex}{CM's gender (factor with 2 levels)}
+#'   \item{likeY11}{Whether CM enjoyed Year 11 (factor with 4 levels)}
+#'   \item{mainAct16}{CM's main activity at 16 (factor with 5 levels)}
+#'   \item{grssWkPay25}{CM's gross weekly pay at 25, in GBP (numeric)}
+#'   \item{degree25}{Whether CM holds an UG degree at 25 (factor with 2 levels)}
+#'   \item{mainAct25}{CM's main activity at 25 (factor with 14 levels)}
+#'   \item{mainAct25_backcoded}{CM's main activity at 25 (factor with 10
+#'     levels)}
+#'   \item{logParInc}{Log of \code{contAnnIncHH_w1} (numeric)}
+#'   \item{logWkPay}{Log of \code{grssWkPay25} (numeric)}
+#' }
+#' @source See \code{lsype1YP} and \code{lsype1FB}.
+"dtLsype4Em"
+
+#' The results of running \code{progUkheEm()} on Next Steps data
+#'
+#' A list containing the results of running \code{progUkheEm()} on the Next
+#' Steps data for K = 2, ..., 20. Parental income is the pre-treatment outcome.
+#' The elements of the list correspond to that value of K, which represents the
+#' number of groups. Each element is itself a list of three elements:
+#'
+#' @format A list of three elements:
+#' \describe{
+#'   \item{\code{listLogLike}}{A list of the log-likelihood at each iteration.}
+#'   \item{\code{listParams}}{A list of the parameter values at each iteration.}
+#'   \item{\code{dtLong}}{A data.table containing the data and final results of
+#'   the EM algorithm.}
+#' }
+#' @source See \code{lsypeYP}, \code{lsypeFB} and \code{progUkheEm.R}.
+"resLsypeParInc"
+
 #' Data collected in the 1986 and 1996 waves of the BCS1970
 #'
 #' A list of 7 data.tables containing the information collected in the 1986 and
@@ -92,48 +145,36 @@
 #'   \item{attSchl}{Reported attitude to school, z (factor, 5 levels)}
 #'   \item{parInc}{Parental income in bins, y1 (factor, 13 levels)}
 #'   \item{degree}{Whether the individual holds an UG degree at 25, d (logical)}
-#'   \item{wklypay}{Weekly pay at 25 in GBP, y2 (numeric)}
+#'   \item{wkPay}{Weekly pay at 25 in GBP}
+#'   \item{logWkPay}{log(wkPay), y2 (numeric)}
 #'   \item{left}{The lower bound for parental income in log(GBP), y1 (numeric)}
 #'   \item{right}{The upper bound for parental income in log(GBP), y1 (numeric)}
+#'   \item{mathScore}{YP's score (/60) on a maths test at 16 (numeric)}
+#'   \item{readScore}{YP's score (/60) on a reading test at 16 (integer)}
+#'   \item{combnScore}{YP's mean score (/60) if took both tests; or the one they took if one missing (numeric)}
+#'   \item{c5axx}{Answers to questions about working, possible z (chr)}
+#'   \item{c5dxx}{Answers to questions about jobs, possible z (chr)}
+#'   \item{c5exx}{Answers to questions about adult life, possible z (chr)}
 #' }
 #' @source See \code{bcs70}.
 "dtBcs4Em"
 
-#' LSYPE1 data formatted for use in \code{progUkheEm}
+#' The results of running \code{progUkheEm()} on BCS data
 #'
-#' A data.table of cleaned and formatted date ready for the EM algorithm as
-#' implemented by \code{progUkheEm}.
+#' A list containing the results of running \code{progUkheEm()} on the BCS data
+#' for K = 2, ..., 20. Test scores are the pre-treatment outcome. The elements
+#' of the list correspond to that value of K, which represents the number of
+#' groups. Each element is itself a list of three elements:
 #'
-#' @format A data.table of 1,584 rows and 18 variables:
+#' @format A list of three elements:
 #' \describe{
-#'   \item{NSID}{Unique identifier for LSYPE cohort members (CMs)}
-#'   \item{annualIncomeMP_w1}{Main parent's annual income (and partner) in wave
-#'     1, banded (factor with 33 levels)}
-#'   \item{annualIncomeMP_topBand_w1}{Further detail if in the top band of main
-#'     parent's annual income, banded (factor with 60 levels)}
-#'   \item{annualIncomeHH_w1}{Annual income of the household in wave 1
-#'     (both parents?), banded (factor with 33 levels)}
-#'   \item{contAnnIncHH_w1}{Annual income of the household in wave 1
-#'     (both parents?), in GBP (numeric)}
-#'   \item{annualIncomeHH_w4}{Annual income of the household in wave 4
-#'     (both parents?), banded (factor with 12 levels)}
-#'   \item{att2Debt16}{CMs attitude to debt at 16, score 2-24 (numeric)}
-#'   \item{att2Schl16}{CMs attitude to school at 16, score 0-20 (numeric)}
-#'   \item{infoStudFin16}{How well informed the CM felt about student finance
-#'     at 16 (factor with 4 levels)}
-#'   \item{sex}{CM's gender (factor with 2 levels)}
-#'   \item{likeY11}{Whether CM enjoyed Year 11 (factor with 4 levels)}
-#'   \item{mainAct16}{CM's main activity at 16 (factor with 5 levels)}
-#'   \item{grssWkPay25}{CM's gross weekly pay at 25, in GBP (numeric)}
-#'   \item{degree25}{Whether CM holds an UG degree at 25 (factor with 2 levels)}
-#'   \item{mainAct25}{CM's main activity at 25 (factor with 14 levels)}
-#'   \item{mainAct25_backcoded}{CM's main activity at 25 (factor with 10
-#'     levels)}
-#'   \item{y1}{Log of \code{contAnnIncHH_w1} (numeric)}
-#'   \item{y2}{Log of \code{grssWkPay25} (numeric)}
+#'   \item{\code{listLogLike}}{A list of the log-likelihood at each iteration.}
+#'   \item{\code{listParams}}{A list of the parameter values at each iteration.}
+#'   \item{\code{dtLong}}{A data.table containing the data and final results of
+#'   the EM algorithm.}
 #' }
-#' @source See \code{lsype1YP} and \code{lsype1FB}.
-"dtLsype4Em"
+#' @source See \code{bcs70} and \code{progUkheEm.R}.
+"resBcsTS"
 
 #' Example data to demonstrate how to deal with binned outcome data
 #'
