@@ -1,0 +1,354 @@
+---
+title: "desc_analysis_bcs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{desc_analysis_bcs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+load_all()
+
+library(ggplot2)
+```
+
+## Test scores ($y_1$)
+
+```{r test scores}
+dtScores <- dtBcs4Em[, .(bcsid, mathScore, readScore)]
+
+corrMathRead <- dtScores[, cor(mathScore, readScore, 
+                               use = "na.or.complete")]
+
+# combine maths and reading score
+dtScores[, combnScore := fcase(
+  !is.na(mathScore) & !is.na(readScore), mathScore + readScore / 2,
+  !is.na(readScore) & is.na(mathScore), readScore,
+  !is.na(mathScore) & is.na(readScore), mathScore
+)]
+
+# combined score no missing
+dtScores[, combScore_true := mathScore + readScore / 2]
+
+dtScores <- melt(dtScores, id.vars = "bcsid", 
+                 value.name = "score")
+
+ggplot(data = dtScores, 
+       mapping = aes(x = score, colour = variable)) +
+  geom_density() +
+  scale_color_discrete(name = NULL, 
+                       limits = c("readScore", "mathScore", 
+                                  "combnScore", "combnScore_true"),
+                       labels = c("Reading", "Maths", "Combined", "Combined (no missing)")) +
+  annotate(geom = "label", x = 7, y = .028, label.size = NA,
+           label = paste0("cor(R, M) = ", 
+                          signif(corrMathRead, digits = 3))) +
+  theme_bw() + 
+  theme(legend.position = c(.1, .9))
+```
+
+## Other measures of ability (for comparison)
+
+```{r other measures ability}
+
+dtGrades <- bcs70$bcs1986x[, .(
+  bcsid, 
+  engLangOL = t2a1.2,
+  engLitOL = t2b1.2,
+  mathsOL = t2c1.2,
+  sciOL = t2d1.2,
+  physOL = t2e1.2,
+  bioOL = t2d1.2,
+  engLangCSE = t2a2.2,
+  engLitCSE = t2b2.2,
+  mathsCSE = t2c2.2,
+  sciCSE = t2d2.2,
+  physCSE = t2e2.2,
+  bioCSE = t2d2.2
+)]
+
+colsOL <- names(dtGrades)[names(dtGrades) %like% "OL"]
+colsCSE <- names(dtGrades)[names(dtGrades) %like% "CSE"]
+
+dtGrades[, paste0(colsOL, "_AC") := lapply(.SD, function(x) x %in% c("Grade A", "Grade B", "Grade C")),
+         .SDcols = colsOL]
+
+dtGrades[, paste0(colsCSE, "_AC") := lapply(.SD, function(x) x %in% c("Grade 1")),
+         .SDcols = colsCSE]
+
+dtGrades[, numA_C := rowSums(.SD), .SDcols = paste0(c(colsOL, colsCSE), "_AC")]
+
+dtGradesScores <- merge(dtScores, dtGrades[, .(bcsid, numA_C)], by = "bcsid")
+
+
+ggplot(data = dtGradesScores[variable == "combnScore"], 
+       mapping = aes(x = score, fill = factor(numA_C))) +
+  geom_histogram() +
+  scale_fill_brewer(name = "GCSEs A*-C", palette = "YlOrRd") +
+  theme_bw() + 
+  theme(legend.position = c(.1, .75)) +
+  guides(fill = guide_legend(ncol = 2))
+```
+
+## (Weekly) pay at twenty-five ($y_2$)
+
+```{r pay at 25}
+
+ggplot(data = dtBcs4Em, 
+       mapping = aes(x = wkPay, colour = degree)) +
+  geom_density() +
+  theme_classic()
+
+ggplot(data = dtBcs4Em, 
+       mapping = aes(x = logWkPay, colour = degree)) +
+  geom_density() +
+  theme_classic()
+
+```
+
+
+## Possible instruments ($z$)
+
+### What about work? [5a]
+
+```{r choosing an instrument waw}
+
+dtBcs4Em[, names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5a")] := lapply(
+  .SD, relevel, ref = "Disagree"), 
+  .SDcols = names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5a")]]
+
+degreeLogitZFormula_waw <- as.formula(
+  paste0("degree ~ ", 
+         paste0(names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5a")], 
+                collapse = " + "))
+)
+
+degreeLogitZ_waw <- glm(
+  formula = degreeLogitZFormula_waw,
+  data = dtBcs4Em,
+  family = binomial()
+)
+
+dtDegreeLogitZ_waw <- as.data.table(
+  summary(degreeLogitZ_waw)$coefficients, 
+  keep.rownames = TRUE
+)
+
+dtDegreeLogitZ_waw[, c("varNames", "answer") := tstrsplit(rn, "A")]
+dtDegreeLogitZ_waw[!is.na(answer), answer := paste0("A", answer)]
+
+dtZ_waw <- bcs70labels$bcs1986x[varNames %like% c("c5a"), ]
+
+dtDegreeLogitZ_waw <- merge(
+  dtDegreeLogitZ_waw, dtZ_waw, by = "varNames"
+)
+
+dtDegreeLogitZ_waw[, ci05 := Estimate - 1.96 * `Std. Error`]
+dtDegreeLogitZ_waw[, ci95 := Estimate + 1.96 * `Std. Error`]
+
+```
+
+```{r plot degreelogit waw coefs}
+
+ggplot(
+  data = dtDegreeLogitZ_waw,
+  mapping = aes(x = varLabels, y = Estimate, 
+                ymin = ci05, ymax = ci95,
+                colour = answer)
+) + 
+  geom_hline(yintercept = 0, colour = "grey") +
+  geom_pointrange() +
+  scale_color_discrete(name = "Response  [ref. cat. Disagree]") +
+  theme_classic() +
+  coord_flip() + theme(legend.position = "bottom") +
+  labs(subtitle = "What about work?")
+
+```
+
+### What's in a job? [5d]
+
+```{r choosing an instrument jobs}
+
+dtBcs4Em[, names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5d")] := lapply(
+  .SD, relevel, ref = "Doesn't matter"), 
+  .SDcols = names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5d")]]
+
+degreeLogitZFormula_job <- as.formula(
+  paste0("degree ~ ", 
+         paste0(names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5d")], 
+                collapse = " + "))
+)
+
+degreeLogitZ_job <- glm(
+  formula = degreeLogitZFormula_job,
+  data = dtBcs4Em,
+  family = binomial()
+)
+
+dtDegreeLogitZ_job <- as.data.table(
+  summary(degreeLogitZ_job)$coefficients, 
+  keep.rownames = TRUE
+)
+
+dtDegreeLogitZ_job[, c("varNames", "answer") := tstrsplit(rn, "M")]
+dtDegreeLogitZ_job[!is.na(answer), answer := paste0("M", answer)]
+
+dtZ_job <- bcs70labels$bcs1986x[varNames %like% c("c5d"), ]
+
+dtDegreeLogitZ_job <- merge(
+  dtDegreeLogitZ_job, dtZ_job, by = "varNames"
+)
+
+dtDegreeLogitZ_job[, ci05 := Estimate - 1.96 * `Std. Error`]
+dtDegreeLogitZ_job[, ci95 := Estimate + 1.96 * `Std. Error`]
+
+```
+
+```{r plot degreelogit coefs jobs}
+
+ggplot(
+  data = dtDegreeLogitZ_job,
+  mapping = aes(x = varLabels, y = Estimate, 
+                ymin = ci05, ymax = ci95,
+                colour = answer)
+) + 
+  geom_hline(yintercept = 0, colour = "grey") +
+  geom_pointrange() +
+  scale_x_discrete(
+    name = NULL,
+    label = as_labeller(function(x) stringr::str_remove(x, "Job: "))
+  ) +
+  scale_color_discrete(name = "Response [ref. cat. Doesn't matter]") +
+  theme_classic() +
+  coord_flip() + theme(legend.position = "bottom") +
+  labs(subtitle = "What's in a job?")
+
+```
+
+
+### Looking ahead [5e] (about becoming an adult)
+
+```{r choosing an instrument}
+
+dtBcs4Em[, names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5e")] := lapply(
+  .SD, relevel, ref = "Doesn't matter"), 
+  .SDcols = names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5e")]]
+
+degreeLogitZFormula_adult <- as.formula(
+  paste0("degree ~ ", 
+         paste0(names(dtBcs4Em)[startsWith(names(dtBcs4Em), "c5e")], 
+                collapse = " + "))
+)
+
+degreeLogitZ_adult <- glm(
+  formula = degreeLogitZFormula_adult,
+  data = dtBcs4Em,
+  family = binomial()
+)
+
+dtDegreeLogitZ_adult <- as.data.table(
+  summary(degreeLogitZ_adult)$coefficients, 
+  keep.rownames = TRUE
+)
+
+dtDegreeLogitZ_adult[, c("varNames", "answer") := tstrsplit(rn, "M")]
+dtDegreeLogitZ_adult[!is.na(answer), answer := paste0("M", answer)]
+
+dtZ_adult <- bcs70labels$bcs1986x[varNames %like% c("c5e"), ]
+
+dtDegreeLogitZ_adult <- merge(
+  dtDegreeLogitZ_adult, dtZ_adult, by = "varNames"
+)
+
+dtDegreeLogitZ_adult[, ci05 := Estimate - 1.96 * `Std. Error`]
+dtDegreeLogitZ_adult[, ci95 := Estimate + 1.96 * `Std. Error`]
+
+```
+
+```{r plot degreelogit coefs}
+
+ggplot(
+  data = dtDegreeLogitZ_adult,
+  mapping = aes(x = varLabels, y = Estimate, 
+                ymin = ci05, ymax = ci95,
+                colour = answer)
+) + 
+  geom_hline(yintercept = 0, colour = "grey") +
+  geom_pointrange() +
+  scale_x_discrete(
+    name = NULL,
+    label = as_labeller(function(x) stringr::str_remove(x, "Adult:? ?l?i?f?e?:? ?"))
+  ) +
+  scale_color_discrete(name = "Response [ref. cat. Doesn't matter]") +
+  theme_classic() +
+  coord_flip() + theme(legend.position = "bottom") +
+  labs(subtitle = "Looking ahead [to adult life]")
+
+```
+
+## MCA on questions above
+
+Multiple correspondance analysis (MCA) is a technique similar to principal components analysis (PCA) that is applicable to categorical variables. See vignette `FactoMineR_MCA` for more details. 
+
+```{r mca}
+
+library(FactoMineR)
+
+cols4mca <- c(names(dtBcs4Em)[names(dtBcs4Em) %like% "c5"], "degree", "wkPay")
+
+dt4Mca <- dtBcs4Em[, ..cols4mca][complete.cases(dtBcs4Em[, ..cols4mca]), ]
+
+resMca <- MCA(dt4Mca, 
+              quali.sup = grep(names(dt4Mca), pattern = "degree"),
+              quanti.sup = grep(names(dt4Mca), pattern = "wkPay"))
+
+```
+
+```{r plot of individuals}
+
+plot(
+  resMca, choix = "ind",
+  invisible = c("var"),
+  cex = .5, label = "none",
+  title = "Scatter plot of individuals on first two dimensions",
+  habillage = "degree"
+)
+
+```
+
+```{r plot active vars}
+
+plot(resMca, # choix = "var", 
+     invisible = c("ind", "quali.sup"),
+     col.var = c(
+       rep("red", 27),    # c5axx "What about work?"
+       rep("black", 48),  # c5dxx "What's in a job?"
+       rep("blue", 45)      # c5exx "Looking ahead"
+     ),
+     title = "Graph of the active categories",
+     xlim = c(-2, 2), label = "none")
+
+dimsResMca <- dimdesc(resMca)
+
+dtDim1 <- as.data.table(dimsResMca$`Dim 1`$category, keep.rownames = TRUE)
+
+```
+
+- all variables
+
+```{r all vars mca}
+
+plot(resMca, choix = "var", 
+     title = "Scatter plot of all variables",
+     label = "none")
+
+```

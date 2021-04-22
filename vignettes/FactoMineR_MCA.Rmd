@@ -1,0 +1,105 @@
+---
+title: "FactoMineR_MCA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{FactoMineR_MCA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignettes follows the document ["Multiple Correspondence Analysis (MCA) with FactoMineR (hobbies dataset)"](http://factominer.free.fr/course/FactoTuto.html) by Magalie Houée-Bigot & François Husson. It uses the [`FactoMineR`](https://cran.r-project.org/web/packages/FactoMineR/index.html) package.
+
+```{r setup}
+# library(ukheEm)
+library(FactoMineR)
+library(here)
+library(data.table)
+
+```
+
+- Load and clean the dataset (downloaded from [here](http://factominer.free.fr/course/FactoTuto.html))
+
+```{r load and clean dataset}
+
+# load `hobbies` dataset
+dtHobbies <- fread(here("data-raw/FactoMineR/data_MCA_Hobbies.csv"), 
+                    header = TRUE, sep = ";")
+
+dtHobbies[, TV := factor(TV)]
+```
+
+- Run MCA using FactoMineR and specifying some variables as categorical (`quali.sup`) and quantitative (`quanti.sup`) supplementary variables.
+
+```{r run mca}
+
+res.mca <- MCA(dtHobbies, quali.sup = 19:22, quanti.sup = 23)
+
+```
+
+```{r summarise results of mca}
+
+summary(res.mca)
+
+```
+
+- plot eigenvalues
+
+```{r plot eigenvalues}
+
+barplot(res.mca$eig[, 2], main = "Eigenvalues", names.arg = 1:nrow(res.mca$eig))
+
+```
+
+- scatter plot of individual observations on first 2 dimensions
+
+```{r plot ind obs 2 dims}
+
+plot(res.mca, choix = "ind",
+     invisible = c("var", "quali.sup"), cex = .5, label = "none",
+     title = "Scatter plot of individuals on first two dimensions")
+
+plot(res.mca, choix = "ind",
+     invisible = c("var", "quali.sup"), cex = .5, label = "none",
+     title = "Scatter plot of individuals on first two dimensions",
+     habillage = "Gardening")
+
+```
+
+- Scatter plot of the "active" categories
+
+```{r plot active vars}
+
+plot(res.mca, # choix = "var", 
+     invisible = c("ind", "quali.sup"),
+     col.var = c(rep(c("black", "red"), 17), "black", rep("red", 4)),
+     title = "Graph of the active categories")
+
+```
+
+- Scatter plot of the supplementary categories
+
+```{r plot supp cats}
+
+plot(res.mca, 
+     invisible = c("ind", "var"), hab = "quali", 
+     palette = palette(c("blue", "maroon", "darkgreen", "black", "red")), 
+     title = "Graph of the supplementary categories")
+
+```
+
+- scatter plot of *all* variables
+
+```{r plot vars}
+
+plot(res.mca, choix = "var", title = "Scatter plot of all variables")
+
+```
+
+- Describe the dimensions ()
