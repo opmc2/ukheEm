@@ -33,7 +33,7 @@ saveFig <- function(x, ...) ggsave(here(figDir, x), width = 10, height = 6)
 options(scipen = 15)
 
 # directories
-figDir <- "vignettes/fig/Lsype"
+figDir <- "vignettes/fig/LsypeParInc"
 dir.create(here(figDir))
 
 resLsype <- resLsypeParInc
@@ -236,7 +236,7 @@ ggplot(
   ) +
   scale_color_discrete(name = NULL, 
                        limits = c("muNorm", "alphaConsNorm"),
-                       labels = c("Test score", "Wage @25")) +
+                       labels = c("Parental Inc. @16", "Wage @25")) +
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
@@ -258,7 +258,7 @@ ggplot(
   ) +
   scale_color_discrete(name = NULL, 
                        limits = c("muNorm", "alphaConsNorm"),
-                       labels = c("Test score", "Wage @25")) +
+                       labels = c("Parental Inc. @16", "Wage @25")) +
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
@@ -280,7 +280,7 @@ saveFig("groupSizesMeansK8_K13.png")
 #   ) +
 #   scale_color_discrete(name = NULL, 
 #                        limits = c("muNorm", "alphaConsNorm"),
-#                        labels = c("Test score", "Wage @25")) +
+#                        labels = c("Parental Inc. @16", "Wage @25")) +
 #   theme_classic() +
 #   theme(legend.position = "bottom", text = element_text(size = 15))
 # 
@@ -307,26 +307,52 @@ setnames(dtWagePrem,
          new = c("alpha_FALSE", "alpha_TRUE", "muD_FALSE", "muD_TRUE"))
 
 dtWagePrem[, wagePrem := alpha_TRUE - alpha_FALSE]
-dtWagePrem[, testPrem := log(muD_TRUE) - log(muD_FALSE)]
+dtWagePrem[, parIncPrem := log(muD_TRUE) - log(muD_FALSE)]
 
 dtWagePrem <- merge(dtWagePrem, 
                     dtPk[variable == "muNorm", .(nTypes, type, mu, P_k)],
                     by = c("nTypes", "type"))
 
-dtWagePrem <- melt(dtWagePrem, 
-                   measure.vars = c("testPrem", "wagePrem"))
+# dtWagePrem <- melt(dtWagePrem, 
+#                    measure.vars = c("testPrem", "wagePrem"))
 
-ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
-       mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-  geom_col(position = "dodge") +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
+ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Par. inc.")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Par. inc.")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK2_K9.png")
 
 ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
-       mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-  geom_col(position = "dodge") +
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
   facet_wrap(vars(nTypes)) +
-  theme_classic()
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Par. inc.")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Par. inc.")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK8_K13.png")
 
 # ggplot(data = dtWagePrem[nTypes %between% c(14, 18)],
 #        mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
@@ -355,68 +381,44 @@ dtPkd[, muDNorm := (muD - mean(muD)) / sd(muD)]
 dtPkd[, alphaNorm := (alpha - mean(alpha)) / sd(alpha)]
 
 ggplot(
-  data = dtPkd[nTypes %between% c(2, 4), ],
+  data = dtPkd[nTypes %between% c(2, 9), ],
   mapping = aes(x = type, fill = d)
 ) +
   geom_col(aes(y = P_kd)) +
-  geom_point(aes(y = (muDNorm + 4)/6, shape = "Test score"), stroke = .3) +
+  geom_point(aes(y = (muDNorm + 4)/6, shape = "Parental Inc. @16"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes), ncol = 2) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
-                     breaks = c("Test score", "log-wage (@25)"),
+                     breaks = c("Parental Inc. @16", "log-wage (@25)"),
                      values = c(21, 24),
-                     labels = c("Test score", "log-wage (@25)")) +
+                     labels = c("Parental Inc. @16", "log-wage (@25)")) +
   theme_classic() +
-  guides(shape = guide_legend())
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("PrkdK2_K9.png")
 
 ggplot(
-  data = dtPkd[nTypes %between% c(5, 10), ],
+  data = dtPkd[nTypes %between% c(8, 13), ],
   mapping = aes(x = type, fill = d)
 ) +
   geom_col(aes(y = P_kd)) +
-  geom_point(aes(y = (muDNorm + 4)/6, shape = "Test score"), stroke = .3) +
+  geom_point(aes(y = (muDNorm + 4)/6, shape = "Parental Inc. @16"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes)) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
-                     breaks = c("Test score", "log-wage (@25)"),
+                     breaks = c("Parental Inc. @16", "log-wage (@25)"),
                      values = c(21, 24),
-                     labels = c("Test score", "log-wage (@25)")) +
+                     labels = c("Parental Inc. @16", "log-wage (@25)")) +
   theme_classic() +
-  guides(shape = guide_legend())
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15))
 
-ggplot(
-  data = dtPkd[nTypes %between% c(11, 14), ],
-  mapping = aes(x = type, fill = d)
-) +
-  geom_col(aes(y = P_kd)) +
-  geom_point(aes(y = (muDNorm + 4)/6, shape = "Test score"), stroke = .3) +
-  geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes)) +
-  scale_y_continuous(name = "Pr(k,d)") +
-  scale_shape_manual(name = NULL,
-                     breaks = c("Test score", "log-wage (@25)"),
-                     values = c(21, 24),
-                     labels = c("Test score", "log-wage (@25)")) +
-  theme_classic() +
-  guides(shape = guide_legend())
+saveFig("PrkdK8_K13.png")
 
-ggplot(
-  data = dtPkd, 
-  mapping = aes(x = type, colour = d)
-) + 
-  geom_point(aes(y = sigmaNuD)) +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
-  
-ggplot(
-  data = dtPkd, 
-  mapping = aes(x = type, colour = d)
-) + 
-  geom_point(aes(y = sigmaEps)) +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
+
 ```
 
 ## Analysing groups based on observables 
@@ -447,20 +449,23 @@ dtATPkd[, `:=` (
 )]
 
 ggplot(
-  data = dtATPkd[nTypes %between% c(2, 7), ],
+  data = dtATPkd[nTypes %between% c(2, 9), ],
   mapping = aes(x = type, fill = d)
 ) +
   geom_col(aes(y = P_kd_AT)) +
-  geom_point(aes(y = (muNorm + 4)/6, shape = "Test score"), stroke = .3) +
+  geom_point(aes(y = (muNorm + 4)/6, shape = "Parental Inc. @16"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes), ncol = 2) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
-                     breaks = c("Test score", "log-wage (@25)"),
+                     breaks = c("Parental Inc. @16", "log-wage (@25)"),
                      values = c(21, 24),
-                     labels = c("Test score", "log-wage (@25)")) +
+                     labels = c("Parental Inc. @16", "log-wage (@25)")) +
   theme_classic() +
-  guides(shape = guide_legend())
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("PrkdK2_K9_assgndTypes.png")
 
 ```
 
@@ -468,31 +473,34 @@ ggplot(
 
 ```{r observed characteristics}
 
-dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
-  id = bcsid, sex, degree,
-  yrJobStart = b960270,
-  inCouple = b960319,
-  married = b960322,
-  livingSitn = b960321,
-  nbKids = b960333,
-  age = b960338,
-  health = b960432,
-  soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
-  noVocQual = no_qual,
-  ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
-  alevel, slevel, # A-level / S-level passes,
-  hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
-  nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
-  ageLeftSchl = b960129, ageLeftFtEd = b960132,
-  trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
-  lengthUnemp = b960258, 
-  usualHoursWk = b960277, 
-  firmSize = b960272
+lsypeW8 <- as.data.table(lsype1YP[[8]])
+dtLsypeWorkerFirm <- lsypeW8[, .(
+  id = NSID, sex = W8CMSEX,
+  # yrJobStart = b960270,
+  inCouple = W8PART,
+  married = W8CRNOWMA,
+  cohabit = W8NRANY,
+  kids = W8MORECH,
+  nbKids = W8MCHMANY,
+  health = W8GENA,
+  SOC2010 = W8JOBDOSOCCODE,
+  NSSEC5 = W8DNSSEC5,
+  # soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  # noVocQual = no_qual,
+  # ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  # alevel, slevel, # A-level / S-level passes,
+  # hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  # nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  # ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  # trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  # lengthUnemp = b960258, 
+  usualHoursWk = W8WRKHRS, 
+  firmSize = W8EMP
 )]
 
 dtAssignedTypes <- merge(
   dtAssignedTypes[, .(nTypes, id, y1, y2, z, d, type, pk)], 
-  dtBcsWorkerFirm, 
+  dtLsypeWorkerFirm, 
   by = "id"
 )
 
@@ -502,33 +510,30 @@ dtAssignedTypes <- merge(
 ```{r table by type K2 to K4}
 
 dtByTypeK2_4 <- dtAssignedTypes[nTypes %between% c(2, 4), .(
-  "Test score (mean)" = mean(y1),
-  "TS (std dev.)" = sd(y1),
+  "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
+  "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
   "Wage (mean)" = mean(exp(y2)),
   "Wage (std dev.)" = sd(exp(y2)),
-  "Degree" = mean(d),
+  "Degree" = mean(d %like% "First or higher degree"),
   "Male" = mean(sex %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
-  "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
-  "Divorced" = mean(married %in% c("Separated", "Divorced")),
-  "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
-                                             "Living as a couple")),
-  "Has children" = mean(nbKids %in% paste0(1:5)),
-  "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
-  "In good health" = mean(health %in% c("Excellent", "Good")),
-  "Occupation data" = mean(!is.na(hgscale)),
-  "H-G score" = mean(hgscale, na.rm = TRUE),
-  "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
-  "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
-  "Ever unemp." = mean(lengthUnemp %in% c(
-    "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
-    "More than 2 years"
-  )),
-  "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
-  "10 or less" = mean(firmSize %like% "10 or less"), 
-  "11--25" = mean(firmSize %like% "11 - 25"),
-  "26--99" = mean(firmSize %like% "26 - 99"),
-  "100--499" = mean(firmSize %like% "100 - 499"),
+  "Married" = mean(married %in% c("Spouse")),
+  # "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  "Live w/ partner" = mean(cohabit %like% "Yes"),
+  "Has children" = mean(kids %like% "Yes"),
+  "Num. of children" = mean(nbKids, na.rm = TRUE), 
+  "In good health" = mean(health %in% c("Excellent", "Very good", "Good")),
+  # "Occupation data" = mean(!is.na(hgscale)),
+  # "H-G score" = mean(hgscale, na.rm = TRUE),
+  # "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  # "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  # "Ever unemp." = mean(lengthUnemp %in% c(
+  #   "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+  #   "More than 2 years"
+  # )),
+  "Hours per week" = mean(usualHoursWk, na.rm = TRUE),
+  "1--24" = mean(firmSize %like% "1-24"),
+  "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
   .N
 ), by = .(nTypes, type)]
@@ -540,7 +545,7 @@ dtByTypeK2_4[, names(dtByTypeK2_4) := lapply(.SD, signif2),
 
 dtByTypeK2_4 <- as.data.table(t(dtByTypeK2_4), keep.rownames = TRUE)
 
-# xtable::xtable(dtByTypeK2_4, digits = 2)
+xtable::xtable(dtByTypeK2_4, digits = 2)
 
 knitr::kable(dtByTypeK2_4)
 ```
@@ -548,33 +553,30 @@ knitr::kable(dtByTypeK2_4)
 ```{r table by type K5 to K6}
 
 dtByTypeK5_6 <- dtAssignedTypes[nTypes %in% c(5, 6), .(
-  "Test score (mean)" = mean(y1),
-  "TS (std dev.)" = sd(y1),
+  "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
+  "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
   "Wage (mean)" = mean(exp(y2)),
   "Wage (std dev.)" = sd(exp(y2)),
-  "Degree" = mean(d),
+  "Degree" = mean(d %like% "First or higher degree"),
   "Male" = mean(sex %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
-  "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
-  "Divorced" = mean(married %in% c("Separated", "Divorced")),
-  "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
-                                             "Living as a couple")),
-  "Has children" = mean(nbKids %in% paste0(1:5)),
-  "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
-  "In good health" = mean(health %in% c("Excellent", "Good")),
-  "Occupation data" = mean(!is.na(hgscale)),
-  "H-G score" = mean(hgscale, na.rm = TRUE),
-  "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
-  "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
-  "Ever unemp." = mean(lengthUnemp %in% c(
-    "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
-    "More than 2 years"
-  )),
-  "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
-  "10 or less" = mean(firmSize %like% "10 or less"), 
-  "11--25" = mean(firmSize %like% "11 - 25"),
-  "26--99" = mean(firmSize %like% "26 - 99"),
-  "100--499" = mean(firmSize %like% "100 - 499"),
+  "Married" = mean(married %in% c("Spouse")),
+  # "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  "Live w/ partner" = mean(cohabit %like% "Yes"),
+  "Has children" = mean(kids %like% "Yes"),
+  "Num. of children" = mean(nbKids, na.rm = TRUE), 
+  "In good health" = mean(health %in% c("Excellent", "Very good", "Good")),
+  # "Occupation data" = mean(!is.na(hgscale)),
+  # "H-G score" = mean(hgscale, na.rm = TRUE),
+  # "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  # "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  # "Ever unemp." = mean(lengthUnemp %in% c(
+  #   "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+  #   "More than 2 years"
+  # )),
+  "Hours per week" = mean(usualHoursWk, na.rm = TRUE),
+  "1--24" = mean(firmSize %like% "1-24"),
+  "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
   .N
 ), by = .(nTypes, type)]
@@ -586,7 +588,7 @@ dtByTypeK5_6[, names(dtByTypeK5_6) := lapply(.SD, signif2),
 
 dtByTypeK5_6 <- as.data.table(t(dtByTypeK5_6), keep.rownames = TRUE)
 
-# xtable::xtable(dtByTypeK5_6, digits = 2)
+xtable::xtable(dtByTypeK5_6, digits = 2)
 
 knitr::kable(dtByTypeK5_6)
 ```

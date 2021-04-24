@@ -34,8 +34,10 @@ options(scipen = 15)
 
 resBcs <- resBcsTS
 
+maxK <- length(resBcsTS)
+
 # directories
-figDir <- "vignettes/fig/Bcs"
+figDir <- "vignettes/fig/BcsTS"
 dir.create(here(figDir))
 ```
 
@@ -44,7 +46,7 @@ This vignette analyses the results of running `progUkheEm()` on the BCS data. Th
 ```{r combine results in big dt}
 
 bigDt <- list()
-for (K in 2:18) {
+for (K in 2:maxK) {
   bigDt[[K-1]] <- resBcs[[K]][[3]]
   bigDt[[K-1]][, nTypes := K]
 }
@@ -55,7 +57,7 @@ bigDt <- rbindlist(bigDt)
 bigDt[, oldType := type]
 # bigDt[, mu := Hmisc::wtd.mean(y1, pk), by = .(nTypes, type)]
 bigDt[, type := frank(mu, ties.method = "dense"), by = .(nTypes)]
-bigDt[, type := factor(type, levels = 1:18)]
+bigDt[, type := factor(type, levels = 1:maxK)]
 setorder(bigDt, nTypes, type, id)
 
 # save number of individuals
@@ -67,7 +69,7 @@ NN <- bigDt[nTypes == 2 & type == 1, .N]
 ```{r dtLikeConverge}
 
 dtLikeConverge <- list()
-for (K in 2:18) {
+for (K in 2:maxK) {
   dtLikeConverge[[K-1]] <- data.table(
     nTypes = K,
     iter = 1:length(resBcs[[K]]$listLoglike),
@@ -139,7 +141,7 @@ ggplot(
   geom_line() +
   geom_point(aes(shape = maxIter), size = 1.5) +
   facet_wrap(vars(criteria), nrow = 2, scale = "free") +
-  scale_x_continuous(name = "Number of types (G)", breaks = seq(2, 18, by = 2)) +
+  scale_x_continuous(name = "Number of types (G)", breaks = seq(2, maxK, by = 2)) +
   scale_y_continuous(name = NULL) +
   scale_shape_manual(
     name = NULL, labels = "Reached max. \niterations (400)",
@@ -307,26 +309,48 @@ dtWagePrem <- merge(dtWagePrem,
                     dtPk[variable == "muNorm", .(nTypes, type, mu, P_k)],
                     by = c("nTypes", "type"))
 
-dtWagePrem <- melt(dtWagePrem, 
-                   measure.vars = c("testPrem", "wagePrem"))
+ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = testPrem, fill = "Par. inc.", colour = "Test")) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Test")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Test")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
 
-ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
-       mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-  geom_col(position = "dodge") +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
+
+saveFig("wagePremK2_K9.png")
+
 
 ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
-       mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-  geom_col(position = "dodge") +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = testPrem, fill = "Par. inc.", colour = "Test")) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Test")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Test")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
 
-ggplot(data = dtWagePrem[nTypes %between% c(14, 18)],
-       mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-  geom_col(position = "dodge") +
-  facet_wrap(vars(nTypes)) +
-  theme_classic()
+
+saveFig("wagePremK8_K13.png")
+
+
 
 ```
 
@@ -349,20 +373,23 @@ dtPkd[, muDNorm := (muD - mean(muD)) / sd(muD)]
 dtPkd[, alphaNorm := (alpha - mean(alpha)) / sd(alpha)]
 
 ggplot(
-  data = dtPkd[nTypes %between% c(2, 4), ],
+  data = dtPkd[nTypes %between% c(2, 9), ],
   mapping = aes(x = type, fill = d)
 ) +
   geom_col(aes(y = P_kd)) +
   geom_point(aes(y = (muDNorm + 4)/6, shape = "Test score"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes), ncol = 2) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
                      breaks = c("Test score", "log-wage (@25)"),
                      values = c(21, 24),
                      labels = c("Test score", "log-wage (@25)")) +
   theme_classic() +
-  guides(shape = guide_legend())
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("PrkdK2_K9.png")
 
 ggplot(
   data = dtPkd[nTypes %between% c(5, 10), ],
@@ -371,7 +398,7 @@ ggplot(
   geom_col(aes(y = P_kd)) +
   geom_point(aes(y = (muDNorm + 4)/6, shape = "Test score"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes)) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
                      breaks = c("Test score", "log-wage (@25)"),
@@ -441,20 +468,23 @@ dtATPkd[, `:=` (
 )]
 
 ggplot(
-  data = dtATPkd[nTypes %between% c(2, 7), ],
+  data = dtATPkd[nTypes %between% c(2, 9), ],
   mapping = aes(x = type, fill = d)
 ) +
   geom_col(aes(y = P_kd_AT)) +
   geom_point(aes(y = (muNorm + 4)/6, shape = "Test score"), stroke = .3) +
   geom_point(aes(y = (alphaNorm + 4)/6, shape = "log-wage (@25)"), stroke = .3) +
-  facet_wrap(vars(nTypes), ncol = 2) +
+  facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Pr(k,d)") +
   scale_shape_manual(name = NULL,
                      breaks = c("Test score", "log-wage (@25)"),
                      values = c(21, 24),
                      labels = c("Test score", "log-wage (@25)")) +
   theme_classic() +
-  guides(shape = guide_legend())
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("PrkdK2_K9_assgndTypes.png")
 
 ```
 
@@ -534,7 +564,7 @@ dtByTypeK2_4[, names(dtByTypeK2_4) := lapply(.SD, signif2),
 
 dtByTypeK2_4 <- as.data.table(t(dtByTypeK2_4), keep.rownames = TRUE)
 
-# xtable::xtable(dtByTypeK2_4, digits = 2)
+xtable::xtable(dtByTypeK2_4, digits = 2)
 
 knitr::kable(dtByTypeK2_4)
 ```
@@ -580,7 +610,7 @@ dtByTypeK5_6[, names(dtByTypeK5_6) := lapply(.SD, signif2),
 
 dtByTypeK5_6 <- as.data.table(t(dtByTypeK5_6), keep.rownames = TRUE)
 
-# xtable::xtable(dtByTypeK5_6, digits = 2)
+xtable::xtable(dtByTypeK5_6, digits = 2)
 
 knitr::kable(dtByTypeK5_6)
 ```
