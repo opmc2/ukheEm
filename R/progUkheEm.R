@@ -19,7 +19,7 @@
 #'   \itemize{
 #'     \item the path to a data.table containing the wage and education
 #'       data. The data.table should have been saved as a
-#'       \code{.rds} file using \code{saveRDS}, or
+#'       \code{.rda} file using \code{save()} or \code{use_data()}, or
 #'     \item a data.table containing the wage and education
 #'       data.
 #'   }
@@ -62,10 +62,11 @@ progUkheEm <- function(
   dt, K, varList,
   startVals = "kmeans",
   maxiter = 400,
-  y1cont = TRUE
+  y1cont = TRUE,
+  y1b = FALSE
 ) {
 
-  if (is.character(dt)) dt <- readRDS(here::here(dt))
+  if (is.character(dt)) dt <- load(here::here(dt))
 
   cols2keep <- varList
 
@@ -77,7 +78,10 @@ progUkheEm <- function(
 
   # set start values
   if (is.character(startVals)) {
-    if(startVals == "kmeans" & isTRUE(y1cont)) {
+    if (startVals == "kmeans" & isTRUE(y1b) & isFALSE(y1cont)) {
+      startVals <- kmeansSVs(dt[, .(left, right, y1b, y2)], K,
+                             y1cont = FALSE, y1b = TRUE)
+    } else if (startVals == "kmeans" & isTRUE(y1cont)) {
       startVals <- kmeansSVs(dt[, .(y1, y2)], K, y1cont = TRUE)
     } else if (startVals == "kmeans") {
       startVals <- kmeansSVs(dt[, .(left, right, y2)], K, y1cont = FALSE)
@@ -126,9 +130,27 @@ progUkheEm <- function(
     # update mu and sigmaNu (parameters of the test score distribution)
 
     if (isTRUE(y1cont)) {
-      dtLong[, c("mu", "sigmaNu") := .(Hmisc::wtd.mean(y1, pk),
-                                       sqrt(Hmisc::wtd.var(y1, pk))),
-             by = .(type)]
+      dtLong[, c("mu", "sigmaNu") := .(
+        Hmisc::wtd.mean(y1, pk),
+        sqrt(Hmisc::wtd.var(y1, pk))
+      ), by = .(type)]
+
+    } else if (isTRUE(y1b)) {
+      dtLong[, c("muB", "sigmaNuB") := .(
+        Hmisc::wtd.mean(y1b, pk),
+        sqrt(Hmisc::wtd.var(y1b, pk))
+      ), by = .(type)]
+      muSigmaRes <- list()
+      for (k in 1:K) {
+        muSigmaRes[[k]] <- optim(
+          par = c(muVec[[k]], sigmaNuVec[[k]]),
+          fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
+        )
+        muVec[[k]] <- muSigmaRes[[k]]$par[[1]]
+        sigmaNuVec[[k]] <- muSigmaRes[[k]]$par[[2]]
+        dtLong[type == k, c("mu", "sigmaNu") := .(muVec[[k]], sigmaNuVec[[k]])]
+      }
+
     } else {
       muSigmaRes <- list()
       for (k in 1:K) {
@@ -146,7 +168,9 @@ progUkheEm <- function(
     # update alpha and sigmaEps (parameters of the wage dist. @25)
 
     dtLong[, c("alpha", "sigmaEps") := .(
-      ifelse(is.na(Hmisc::wtd.mean(y2, pk)), alpha, Hmisc::wtd.mean(y2, pk)),
+      ifelse(is.na(Hmisc::wtd.mean(y2, pk)),
+             alpha,
+             Hmisc::wtd.mean(y2, pk)),
       ifelse(is.na(sqrt(Hmisc::wtd.var(y2, pk))),
              sigmaEps,
              sqrt(Hmisc::wtd.mean(y2, pk)))),
@@ -163,11 +187,18 @@ progUkheEm <- function(
     if (isTRUE(y1cont)) {
       dtLong[, likelihoodK := pi_kzd *
                dnorm(y1, mean = mu, sd = sigmaNu) *
-               1 / exp(y2) * dnorm(y2, mean = alpha, sd = sigmaEps)
-               ]
+               1 / exp(y2) * dnorm(y2, mean = alpha, sd = sigmaEps)]
+
+    } else if (isTRUE(y1b)) {
+      dtLong[, likelihoodK := pi_kzd *
+               (pnorm(right, mean = mu, sd = sigmaNu) -
+                  pnorm(left, mean = mu, sd = sigmaNu)) *
+               dnorm(y1b, mean = muB, sd = sigmaNuB) *
+               (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
     } else {
       dtLong[, likelihoodK := pi_kzd *
-               (pnorm(right, mean = mu, sd = sigmaNu) - pnorm(left, mean = mu, sd = sigmaNu)) *
+               (pnorm(right, mean = mu, sd = sigmaNu) -
+                  pnorm(left, mean = mu, sd = sigmaNu)) *
                (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
     }
 
