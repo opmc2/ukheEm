@@ -29,7 +29,7 @@
 #'     \item \code{muSigmaRes} An intermediate list containing results of ML to
 #'       make y1 continuous if it is not. i.e. if \code{y1cont == FALSE}.
 #'   }
-kmeansSVs <- function(y, K, y1cont = T) {
+kmeansSVs <- function(y, K, y1cont = TRUE, y1b = FALSE) {
   if (isTRUE(y1cont)) {
     # y should be a vector or matrix containing the continuous outcomes, and
     # K is the number of types
@@ -43,6 +43,29 @@ kmeansSVs <- function(y, K, y1cont = T) {
     sigmaEps <- cbind(sigmas$sigmaEps, sigmas$sigmaEps)
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
     muSigmaRes <- list()
+  } else if (isTRUE(y1b)) {
+    # y contains a continuous outcome (currently y2), "left" and "right" for
+    # binned data, and continuous y1b.
+    # K is the number of types
+    res <- kmeans(y[, .(y1b, y2)], centers = K, nstart = 5)
+    muB <- res$centers[, 1]
+    alpha <- cbind(res$centers[, 2], res$centers[, 2])
+    y[, svType := res$cluster]
+    muSigmaRes <- list()
+    mu <- numeric(length = K)
+    sigmaNu <- numeric(length = K)
+    y[, pk := 1]
+    for (k in 1:K) {
+      muSigmaRes[[k]] <- optim(
+        par = ellInit(y[svType == k]),
+        fn = function(theta) -ell(theta, x = y[svType == k])
+      )
+      mu[[k]] <- muSigmaRes[[k]]$par[[1]]
+      sigmaNu[[k]] <- muSigmaRes[[k]]$par[[2]]
+    }
+    sigmaEps <- y[, sd(y2),
+                  by = svType][order(svType)][, V1]
+    P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
   } else {
     # y contains a continuous outcome (currently y2) and "left", "right" for
     # binned data.
@@ -66,9 +89,20 @@ kmeansSVs <- function(y, K, y1cont = T) {
                   by = svType][order(svType)][, V1]
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
   }
-  return(list(P_k = P_k, mu = mu, alpha = alpha, sigmaNu = sigmaNu,
-              sigmaEps = sigmaEps, svTypes = res$cluster,
-              muSigmaRes = muSigmaRes))
+  if (isTRUE(y1b)) {
+    return(list(
+      P_k = P_k, mu = mu, muB = muB, alpha = alpha, sigmaNu = sigmaNu,
+      sigmaEps = sigmaEps, svTypes = res$cluster,
+      muSigmaRes = muSigmaRes
+    ))
+  } else {
+    return(list(
+      P_k = P_k, mu = mu, alpha = alpha, sigmaNu = sigmaNu,
+      sigmaEps = sigmaEps, svTypes = res$cluster,
+      muSigmaRes = muSigmaRes
+    ))
+  }
+
 }
 
 # likelihood to fit Gaussian to binned data
