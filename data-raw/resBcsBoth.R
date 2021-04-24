@@ -27,7 +27,7 @@ for (K in 2:20) {
       z = "c5e7", # adult life benefits: live away from home
       d = "degree"
     ),
-    maxiter = 10,
+    maxiter = 400,
     y1cont = FALSE, y1b = TRUE
   )
   print(paste0("K = ", K, " completed."))
