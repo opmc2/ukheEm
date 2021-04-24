@@ -1,5 +1,5 @@
 ## --------------------------------------------------------------------------- #
-## resBcs.R
+## resBcsParInc.R
 ##
 ## Project: UK HE EM
 ## Purpose: Runs progUkheEm() on BCS data and saves resBcs
