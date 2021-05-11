@@ -313,7 +313,7 @@ dtWagePrem <- merge(dtWagePrem,
 ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
        mapping = aes(x = type, alpha = P_k)) +
   geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = testPrem, fill = "Par. inc.", colour = "Test")) +
+  geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
@@ -334,7 +334,7 @@ saveFig("wagePremK2_K9.png")
 ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
        mapping = aes(x = type, alpha = P_k)) +
   geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = testPrem, fill = "Par. inc.", colour = "Test")) +
+  geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
@@ -352,6 +352,46 @@ ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
 saveFig("wagePremK8_K13.png")
 
 
+
+```
+
+## Unconditional graduate wage premium
+
+$$
+WP = \sum_k \pi(k) WP(k), \,\,\, WP_{d=1} = \sum_k \pi(k|d=1) WP(k)
+$$
+
+```{r unconditional ATEs}
+
+dtWPuncond <- merge(
+  dtWagePrem,
+  bigDt[d == TRUE, .(
+    P_kdT = sum(pk) / .N
+  ), by = .(nTypes, type)],
+  by = c("nTypes", "type")
+) %>% 
+  .[, .(
+  WPu = sum(P_k * wagePrem),
+  WPu_dT = sum(P_kdT * wagePrem)
+), by = nTypes]
+
+
+ggplot(data = dtWPuncond,
+       mapping = aes(x = nTypes)) +
+  geom_col(aes(y = WPu, fill = "ATE", colour = "ATE")) +
+  geom_col(aes(y = WPu_dT, fill = "ATT", colour = "ATT")) +
+  scale_x_continuous(name = "Number of types (K)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "",
+                    values = c("red", NA),
+                    limits = c("ATE", "ATT")) +
+  scale_colour_manual(name = "",
+                      values = c(NA, "blue"),
+                      limits = c("ATE", "ATT")) +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("uncondWP.png")
 
 ```
 
