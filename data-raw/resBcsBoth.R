@@ -13,9 +13,9 @@
 devtools::load_all()
 
 # call progUkheEm() on BCS data using test score as y1
-resBcsParInc <- list()
+resBcsBoth <- list()
 for (K in 2:20) {
-  resBcsParInc[[K]] <- progUkheEm(
+  resBcsBoth[[K]] <- progUkheEm(
     dt = dtBcs4Em,
     K = K,
     varList = c(
@@ -33,4 +33,4 @@ for (K in 2:20) {
   print(paste0("K = ", K, " completed."))
 }
 
-use_data(resBcsParInc, overwrite = TRUE)
+use_data(resBcsBoth, overwrite = TRUE)
