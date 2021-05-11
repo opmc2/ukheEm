@@ -23,6 +23,7 @@ knitr::opts_chunk$set(
 library(ggplot2)
 library(ggrepel)
 library(here)
+library(magrittr)
 
 devtools::load_all()
 
