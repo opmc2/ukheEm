@@ -557,6 +557,48 @@ dtAssignedTypes <- merge(
 
 ```
 
+```{r summary stats BCS}
+dtSumStats <- dtAssignedTypes[nTypes == 2, .(
+  # "Par. Inc. @16 (mean)" = mean(exp(mu)),
+  # "Par. Inc. (std dev.)" = exp(mean(sigmaNu)),
+  "Wage (mean)" = mean(exp(y2)),
+  "Wage (std dev.)" = sd(exp(y2)),
+  "Degree" = mean(d),
+  "Male" = mean(sex %like% "Male"),
+  "In relationship" = mean(inCouple %like% "Yes"),
+  "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
+  "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
+                                             "Living as a couple")),
+  "Has children" = mean(nbKids %in% paste0(1:5)),
+  "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
+  "In good health" = mean(health %in% c("Excellent", "Good")),
+  "Occupation data" = mean(!is.na(hgscale)),
+  "H-G score" = mean(hgscale, na.rm = TRUE),
+  "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  "Ever unemp." = mean(lengthUnemp %in% c(
+    "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+    "More than 2 years"
+  )),
+  "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
+  "10 or less" = mean(firmSize %like% "10 or less"), 
+  "11--25" = mean(firmSize %like% "11 - 25"),
+  "26--99" = mean(firmSize %like% "26 - 99"),
+  "100--499" = mean(firmSize %like% "100 - 499"),
+  "500 or more" = mean(firmSize %like% "500 or more"),
+  .N
+)] %>%
+  # .[, names(.) := lapply(.SD, signif2), 
+  #            .SDcols = names(.)] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE) 
+
+xtable::xtable(dtSumStats, digits = 2)
+
+
+```
+
 
 ```{r table by type K2 to K4}
 
