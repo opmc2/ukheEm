@@ -222,3 +222,14 @@
 #' }
 #' @source \url{https://beta.ukdataservice.ac.uk/datacatalogue/series/series?id=2000031}
 "mcs7Labels"
+
+#' Table mapping SOC codes to NSSEC categories
+#'
+#' @format A data.table of 3 variables and 369 rows:
+#' \describe{
+#'   \item{SOC2010}{The SOC2010 code}
+#'   \item{SOCtitle}{The title of the corresponding SOC class}
+#'   \item{NSSEC}{The (simplified) NS-SEC code}
+#' }
+#' @source \url{https://www.ons.gov.uk/methodology/classificationsandstandards/standardoccupationalclassificationsoc/soc2010/soc2010volume3thenationalstatisticssocioeconomicclassificationnssecrebasedonsoc2010}
+"soc2nssec"
