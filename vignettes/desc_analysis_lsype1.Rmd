@@ -22,6 +22,7 @@ knitr::opts_chunk$set(
 # library(ukheEm)
 devtools::load_all()
 library(ggplot2)
+library(magrittr)
 
 # colorblind palette
 colorblind_palette <- c("#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", 
@@ -228,6 +229,7 @@ dtLsype[inSubSample == T, .N / 4640, by = ethGrp]
 dtLsype[, .N / 6628, by = w4SOCMajorMP]
 dtLsype[inSubSample == T, .N / 4640, by = w4SOCMajorMP]
 ```
+
 ## Wage distributions
 
 ```{r earning dist lsype}
@@ -254,6 +256,96 @@ ggplot(
 # )
 
 
+```
+
+## Non-cognitive skills
+
+Following @buchmueller_graduate_2020, I use a series of questions asked to the CMs to capture their non-cognitive skills in three dimensions:
+
+- locus of control
+- work ethic
+- self-esteem
+
+For now I will use the observations taken during wave 2.
+
+```{r noncog}
+
+locVarsP <- paste0("W2Fat", c(1, 5, 8), "YP")
+locVarsN <- "W2Fat7YP"
+
+vars2keep <- c("NSID", locVarsP, locVarsN, "W2yschat1", "W2ghq12scr")
+
+dtNonCog <- lsype1YP[[2]][, ..vars2keep] %>%
+  .[, locScoreP := rowSums((sapply(.SD, as.numeric)*-1) + 4), .SDcols = locVarsP] %>%
+  .[, locScoreN := rowSums(sapply(.SD, as.numeric) - 1), .SDcols = locVarsN] %>%
+  .[, locScore := locScoreP + locScoreN]
+
+setnames(dtNonCog, old = c("W2yschat1", "W2ghq12scr"), new = c("att2schlScr", "ghqScr"))
+
+nonCogVars <- c("att2schlScr", "ghqScr", "locScore")
+
+standardise <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+
+dtNonCog[, paste0(nonCogVars, "_std") := lapply(.SD, standardise), .SDcols = nonCogVars]
+
+dtNonCogLong <- melt(dtNonCog, 
+                     measure.vars = list(nonCogVars, paste0(nonCogVars, "_std")),
+                     value.name = c("value", "value_std")) 
+
+ggplot(data = dtNonCogLong,
+       aes(x = value, fill = variable)) +
+  geom_histogram(bins = 15) + 
+  facet_wrap(vars(variable), ncol = 2, scales = "free") +
+  theme_classic()
+
+ggplot(data = dtNonCogLong,
+       aes(x = value_std, colour = variable)) +
+  geom_density(adjust = 2.5) + 
+  # facet_wrap(vars(variable), ncol = 2, scales = "free") +
+  theme_classic()
+
+cols2keep <- c("NSID", nonCogVars, paste0(nonCogVars, "_std"))
+nonCogScores <- dtNonCog[!is.na(locScore) & !is.na(ghqScr) & 
+                           !is.na(att2schlScr), ..cols2keep]
+
+den3d_locghq <- MASS::kde2d(x = nonCogScores$locScore, y = nonCogScores$ghqScr)
+den3d_locatt <- MASS::kde2d(x = nonCogScores$locScore, y = nonCogScores$att2schlScr, n = 15)
+den3d_attghq <- MASS::kde2d(x = nonCogScores$att2schlScr, y = nonCogScores$ghqScr)
+
+library(plotly)
+
+plot_ly(x = den3d_locatt$x, y = den3d_locatt$y, z = den3d_locatt$z) %>% 
+  add_surface() %>%
+  layout(
+    title = "Density of noncognitive scores",
+    scene = list(
+      xaxis = list(title = "Locus of control"),
+      yaxis = list(title = "Attitude to school"),
+      zaxis = list(title = "Density")
+    )
+  )
+
+plot_ly(x = den3d_locghq$x, y = den3d_locghq$y, z = den3d_locghq$z) %>% 
+  add_surface() %>%
+  layout(
+    title = "Density of noncognitive scores",
+    scene = list(
+      xaxis = list(title = "Locus of control"),
+      yaxis = list(title = "GHQ"),
+      zaxis = list(title = "Density")
+    )
+  )
+
+plot_ly(x = den3d_attghq$x, y = den3d_attghq$y, z = den3d_attghq$z) %>% 
+  add_surface() %>%
+  layout(
+    title = "Density of noncognitive scores",
+    scene = list(
+      xaxis = list(title = "Attitude to school"),
+      yaxis = list(title = "GHQ"),
+      zaxis = list(title = "Density")
+    )
+  )
 ```
 
 ## Other factors ("psychic costs")
