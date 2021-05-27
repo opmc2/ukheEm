@@ -1,0 +1,435 @@
+---
+title: "QuantileRegression"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{QuantileRegression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.dim = c(10, 6)
+)
+```
+
+```{r setup}
+# library(ukheEm)
+devtools::load_all()
+
+library(quantreg)
+library(ggplot2)
+library(stringr)
+library(ggrepel)
+library(here)
+
+saveFig <- function(x, ...) ggsave(here(figDir, x), width = 10, height = 6)
+
+figDir <- "vignettes/fig/QuantReg"
+dir.create(here(figDir))
+```
+
+Applying quantile regression methods (via `quantreg`) to the BCS and LSYPE data, and reproducing the analysis by SES from Britton et al. (2021) on my data.
+
+# Quantile regression 
+
+## BCS data
+
+```{r bcsQrPlot_nc, fig.dim=c(6, 6)}
+
+data("dtBcs4Em")
+
+# model with no controls
+bcsQrNC <- rq(
+  formula = logWkPay ~ degree, 
+  tau = seq(.1, .9, by = .1),
+  data = dtBcs4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "bcsQrPlot_nc.png"))
+plot(bcsQrNC, parm = 2, main = c("Degree (1970)"), ylim = c(.1, .4))
+dev.off()
+
+```
+
+```{r bcsQrPlot_TS}
+
+# model with TS
+bcsQrTS <- rq(
+  formula = logWkPay ~ degree + combnScore, 
+  tau = seq(.1, .9, by = .1),
+  data = dtBcs4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "bcsQrPlot_ts.png"), width = 800)
+plot(bcsQrTS, mfrow = c(1,2), parm = 2:3, main = c("Degree", "Test score"))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotDegree_ts.png"), width = 480)
+plot(bcsQrTS, parm = 2, main = c("Degree (1970)"), ylim = c(.1, .4))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotTs.png"), width = 480)
+plot(bcsQrTS, parm = 3, main = c("Test score (1970)"))
+dev.off()
+
+```
+
+```{r bcsQrPlot_parInc}
+
+# model with parental income
+dtBcs4Em[, midParInc := left + right / 2]
+bcsQrParInc <- rq(
+  formula = logWkPay ~ degree + midParInc, 
+  tau = seq(.1, .9, by = .1),
+  data = dtBcs4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "bcsQrPlot_parInc.png"), width = 800)
+plot(bcsQrParInc, mfrow = c(1,2), parm = 2:3, 
+     main = c("Degree (1970)", "Parental income (1970)"))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotDegree_parInc.png"), width = 480)
+plot(bcsQrParInc, parm = 2, main = c("Degree (1970)"), ylim = c(.1, .4))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotParInc.png"), width = 480)
+plot(bcsQrParInc, parm = 3, main = c("Parental income (1970)"), ylim = c(.04, .2))
+dev.off()
+
+```
+
+```{r bcsQrPlot_both}
+
+# model with TS and parental income
+bcsQrParBoth <- rq(
+  formula = logWkPay ~ degree + combnScore + midParInc, 
+  tau = seq(.1, .9, by = .1),
+  data = dtBcs4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "bcsQrPlot_both.png"), width = 1100)
+plot(bcsQrParBoth, mfrow = c(1,3), parm = 2:4,
+     main = c("Degree", "Test score", "Parental income"))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotDegree_both.png"), width = 480)
+plot(bcsQrParBoth, parm = 2, main = c("Degree (1970)"), ylim = c(.1, .4))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotParInc_both.png"), width = 480)
+plot(bcsQrParBoth, parm = 3, main = c("Parental income (1970)"))
+dev.off()
+
+png(filename = here(figDir, "bcsQrPlotTs_both.png"), width = 480)
+plot(bcsQrParBoth, parm = 4, main = c("Test score (1970)"))
+dev.off()
+
+```
+
+## Next Steps (LSYPE) data
+
+
+```{r lsypeQrPlot_nc, fig.dim=c(6, 6)}
+
+data("dtLsype4Em")
+
+dtLsype4Em[, degree := fcase(
+  degree25 == "First or higher degree", TRUE,
+  degree25 == "No degree", FALSE
+)]
+
+# model with no controls
+lsypeQrNC <- rq(
+  formula = logWkPay ~ degree, 
+  tau = seq(.1, .9, by = .1),
+  data = dtLsype4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "lsypeQrPlot_nc.png"))
+plot(lsypeQrNC, parm  = 2, main = "Degree (1990)", ylim = c(.1, .4))
+dev.off()
+
+```
+
+```{r lsypeQrPlot_parInc}
+
+# model with parental income
+lsypeQrParInc <- rq(
+  formula = logWkPay ~ degree + logParInc, 
+  tau = seq(.1, .9, by = .1),
+  data = dtLsype4Em
+) %>%
+  summary()
+
+png(filename = here(figDir, "lsypeQrPlot_parInc.png"), width = 800)
+plot(lsypeQrParInc, mfrow = c(1,2), parm = 2:3, 
+     main = c("Degree (1990)", "Parental income (1990)"))
+dev.off()
+
+png(filename = here(figDir, "lsypeQrPlotDegree_parInc.png"), width = 480)
+plot(lsypeQrParInc, parm = 2, main = c("Degree (1990)"), ylim = c(.1, .4))
+dev.off()
+
+png(filename = here(figDir, "lsypeQrPlotParInc.png"), width = 480)
+plot(lsypeQrParInc, parm = 3, 
+     main = c("Parental income (1990)"), ylim = c(.04, .2))
+dev.off()
+
+```
+
+# Analysis by independent variable quantiles (following Britton et al. (2021))
+
+## BCS
+
+### Parental income (SES)
+
+```{r bcs data ses quantiles}
+
+plot(ecdf(dtBcs4Em$midParInc))
+
+sesQsBcs <- dtBcs4Em[, quantile(midParInc, probs = seq(0, 1, .2), na.rm = TRUE)]
+
+dtBcs4Em[, sesQ := fcase(
+  midParInc %between% c(4.0, 7.1), 1,
+  midParInc %between% c(7.1, 7.6), 2,
+  midParInc %between% c(7.6, 8.0), 3,
+  midParInc %between% c(8.0, 8.6), 4,
+  midParInc %between% c(8.6, 9.9), 5
+)]
+
+dtBcs4Em[, sesQ := factor(sesQ, levels = 1:5, labels = c(
+  "1st quintile", "2nd quintile", "3rd quintile", "4th quintile", "5th quintile"
+))]
+
+plot(dtBcs4Em[, sesQ])
+
+bcsLmByQs <- lm(
+  formula = logWkPay ~ degree:sesQ - 1,
+  data = dtBcs4Em
+) %>% 
+  summary()
+
+dtBcsLmByQs <- data.table(bcsLmByQs$coefficients, keep.rownames = TRUE) %>%
+  .[, c("degree", "sesQ") := tstrsplit(rn, split = ":")] %>%
+  .[, `:=` (
+    degree = str_remove(degree, "degree"),
+    sesQ = str_remove(sesQ, "sesQ")
+  )]
+
+ggplot(
+  data = dtBcsLmByQs, 
+  mapping = aes(
+    x = sesQ, y = Estimate, colour = degree, group = degree, fill = degree,
+    ymin = Estimate - `Std. Error`, ymax = Estimate + `Std. Error`
+  )
+) +
+  geom_point() + 
+  geom_line() + 
+  geom_ribbon(alpha = .3, linetype = "dotted") +
+  geom_label(
+    data = dtBcsLmByQs[sesQ == "1st quintile" & degree == "TRUE", ],
+    mapping = aes(x = sesQ, y = Estimate, colour = degree, label = "Degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = dtBcsLmByQs[sesQ == "1st quintile" & degree == "FALSE", ],
+    mapping = aes(x = sesQ, y = Estimate, colour = degree, label = "No degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  scale_x_discrete(name = "SES") +
+  scale_y_continuous(name = "log-wage") +
+  # scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(legend.position = "none", text = element_text(size = 15))
+
+saveFig("bcsBrittonLinePlot.png")
+
+
+ggplot(data = dtBcs4Em,
+       mapping = aes(x = sesQ, y = logWkPay, colour = degree)) +
+  geom_boxplot(notch = TRUE) +
+  geom_point(data = dtBcsLmByQs, 
+             mapping = aes(x = sesQ, y = Estimate, colour = degree),
+             shape = "+", size = 5, position = position_dodge2(width = .75)) +
+  scale_y_continuous(name = "log-wage") +
+  scale_x_discrete(name = "\nSES") +
+  scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(text = element_text(size = 15), legend.position = c(.15, -.1),
+        legend.direction = "horizontal") +
+  coord_cartesian(ylim = c(4, 6.5))
+
+saveFig("bcsBrittonBoxPlot.png")
+
+# boxplot(logWkPay ~ sesQ + degree, data = dtBcs4Em)
+```
+
+### Test scores
+
+```{r bcs data TS quantiles}
+
+plot(ecdf(dtBcs4Em$combnScore))
+
+tsQsBcs <- dtBcs4Em[, quantile(combnScore, probs = seq(0, 1, .2), na.rm = TRUE)]
+
+dtBcs4Em[, tsQ := fcase(
+  combnScore %between% c(1.0, 41.5), 1,
+  combnScore %between% c(41.5, 50.5), 2,
+  combnScore %between% c(50.5, 59.0), 3,
+  combnScore %between% c(59.5, 68.5), 4,
+  combnScore %between% c(68.5, 96.5), 5
+)]
+
+dtBcs4Em[, tsQ := factor(tsQ, levels = 1:5, labels = c(
+  "1st quintile", "2nd quintile", "3rd quintile", "4th quintile", "5th quintile"
+))]
+
+plot(dtBcs4Em[, tsQ])
+
+bcsLmByTsQs <- lm(
+  formula = logWkPay ~ degree:tsQ - 1,
+  data = dtBcs4Em
+) %>% 
+  summary()
+
+dtBcsLmByTsQs <- data.table(bcsLmByTsQs$coefficients, keep.rownames = TRUE) %>%
+  .[, c("degree", "tsQ") := tstrsplit(rn, split = ":")] %>%
+  .[, `:=` (
+    degree = str_remove(degree, "degree"),
+    tsQ = str_remove(tsQ, "tsQ")
+  )]
+
+ggplot(data = dtBcsLmByTsQs, 
+       mapping = aes(x = tsQ, y = Estimate, colour = degree, 
+                     group = degree, fill = degree,
+                     ymin = Estimate - `Std. Error`, 
+                     ymax = Estimate + `Std. Error`)) +
+  geom_point() + 
+  geom_line() + 
+  geom_ribbon(alpha = .3, linetype = "dotted") +
+  geom_label(
+    data = dtBcsLmByTsQs[tsQ == "1st quintile" & degree == "TRUE", ],
+    mapping = aes(x = tsQ, y = Estimate, colour = degree, label = "Degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = dtBcsLmByTsQs[tsQ == "1st quintile" & degree == "FALSE", ],
+    mapping = aes(x = tsQ, y = Estimate, colour = degree, label = "No degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  scale_x_discrete(name = "Test score") +
+  # scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(legend.position = "none", text = element_text(size = 15))
+
+saveFig("bcsBrittonLinePlot_tsQs.png")
+
+ggplot(data = dtBcs4Em,
+       mapping = aes(x = tsQ, y = logWkPay, colour = degree)) +
+  geom_boxplot(notch = TRUE) +
+  geom_point(data = dtBcsLmByTsQs, 
+             mapping = aes(x = tsQ, y = Estimate, colour = degree),
+             shape = "+", size = 5, position = position_dodge2(width = .75)) +
+  scale_y_continuous(name = "log-wage") +
+  scale_x_discrete(name = "\nTest score") +
+  scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(text = element_text(size = 15), legend.position = c(.15, -.1),
+        legend.direction = "horizontal") +
+  coord_cartesian(ylim = c(4, 6.5))
+
+saveFig("bcsBrittonBoxPlot_tsQs.png")
+
+# boxplot(logWkPay ~ sesQ + degree, data = dtBcs4Em)
+```
+
+## Next Steps
+
+### Parental income (SES)
+
+```{r bcs data ses quantiles}
+
+plot(ecdf(dtLsype4Em$logParInc))
+
+sesQsLsype <- dtLsype4Em[, quantile(logParInc, probs = seq(0, 1, .2), na.rm = TRUE)]
+
+dtLsype4Em[, sesQ := fcase(
+  logParInc %between% c(sesQsLsype[[1]], sesQsLsype[[2]]), 1,
+  logParInc %between% c(sesQsLsype[[2]], sesQsLsype[[3]]), 2,
+  logParInc %between% c(sesQsLsype[[3]], sesQsLsype[[4]]), 3,
+  logParInc %between% c(sesQsLsype[[4]], sesQsLsype[[5]]), 4,
+  logParInc %between% c(sesQsLsype[[5]], sesQsLsype[[6]]), 5
+)]
+
+dtLsype4Em[, sesQ := factor(sesQ, levels = 1:5, labels = c(
+  "1st quintile", "2nd quintile", "3rd quintile", "4th quintile", "5th quintile"
+))]
+
+plot(dtLsype4Em[, sesQ])
+
+lsypeLmByQs <- lm(
+  formula = logWkPay ~ degree:sesQ - 1,
+  data = dtLsype4Em
+) %>% 
+  summary()
+
+dtLsypeLmByQs <- data.table(lsypeLmByQs$coefficients, keep.rownames = TRUE) %>%
+  .[, c("degree", "sesQ") := tstrsplit(rn, split = ":")] %>%
+  .[, `:=` (
+    degree = str_remove(degree, "degree"),
+    sesQ = str_remove(sesQ, "sesQ")
+  )]
+
+ggplot(data = dtLsypeLmByQs, 
+       mapping = aes(x = sesQ, y = Estimate, colour = degree, 
+                     group = degree, fill = degree,
+                     ymin = Estimate - `Std. Error`, 
+                     ymax = Estimate + `Std. Error`)) +
+  geom_point() + 
+  geom_line() + 
+  geom_ribbon(alpha = .3, linetype = "dotted") +
+  geom_label(
+    data = dtLsypeLmByQs[sesQ == "1st quintile" & degree == "TRUE", ],
+    mapping = aes(x = sesQ, y = Estimate, colour = degree, label = "Degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = dtLsypeLmByQs[sesQ == "1st quintile" & degree == "FALSE", ],
+    mapping = aes(x = sesQ, y = Estimate, colour = degree, label = "No degree"),
+    nudge_x = -.3, nudge_y = 0, inherit.aes = FALSE
+  ) +
+  scale_x_discrete(name = "SES") +
+  # scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(legend.position = "none", text = element_text(size = 15))
+
+saveFig("lsypeBrittonLinePlot.png")
+
+ggplot(data = dtLsype4Em,
+       mapping = aes(x = sesQ, y = logWkPay, colour = degree)) +
+  geom_boxplot(notch = TRUE) +
+  geom_point(data = dtLsypeLmByQs, 
+             mapping = aes(x = sesQ, y = Estimate, colour = degree),
+             shape = "+", size = 5, position = position_dodge2(width = .75)) +
+  scale_y_continuous(name = "log-wage") +
+  scale_x_discrete(name = "\nSES") +
+  scale_colour_discrete(name = NULL, labels = c("No degree", "Degree")) +
+  theme_classic() +
+  theme(text = element_text(size = 15), legend.position = c(.15, -.1),
+        legend.direction = "horizontal") +
+  coord_cartesian(ylim = c(4.6, 7.1))
+
+saveFig("lsypeBrittonBoxPlot.png")
+
+
+# boxplot(logWkPay ~ sesQ + degree, data = dtLsype4Em)
+```
