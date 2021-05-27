@@ -3,6 +3,7 @@
 # load packages
 library(here)
 library(data.table)
+library(magrittr)
 
 # load ukheEm (including bcs70 data)
 # library(ukheEm)
@@ -19,28 +20,51 @@ names(jobVars) <- bcs70labels$bcs1986x[varNames %like% "^c5d", varLabels]
 adultLifeVars <- bcs70labels$bcs1986x[varNames %like% "^c5e", varNames]
 names(adultLifeVars) <- bcs70labels$bcs1986x[varNames %like% "^c5e", varLabels]
 
-# combine YP 1 and 8 and FB 1
+# noncognitive measures
+locVarsN <- paste0("c5l", c(1:3, 5, 7, 8, 10, 12:15, 17, 19, 20, 23, 25, 26))
+locVarsY <- paste0("c5l", c(9, 22))
+ghqVarsP <- paste0("c5i", 1:6)
+ghqVarsN <- paste0("c5i", 7:12)
+
+noncogVars <- c("bcsid", "f22score", locVarsN, locVarsY, ghqVarsN, ghqVarsP)
+
+dtNonCog <- bcs70$bcs1986x[, ..noncogVars] %>%
+  .[, selfEsteemScore := as.numeric(f22score)] %>%
+  .[, locScoreN := rowSums(.SD == "No"), .SDcols = locVarsN] %>%
+  .[, locScoreY := rowSums(.SD == "Yes"), .SDcols = locVarsN] %>%
+  .[, locScore := locScoreN + locScoreY] %>%
+  .[, ghqScoreN := rowSums(sapply(.SD, function(x) (x %in% c("More than usual", "Rather more tn usual")))), .SDcols = ghqVarsN] %>%
+  .[, ghqScoreP := rowSums(sapply(.SD, function(x) (x %in% c("Not at all", "Less than usual")))), .SDcols = ghqVarsP] %>%
+  .[, ghqScore := ghqScoreP + ghqScoreN]
+
+# merge datasets
 dtBcs <- merge(
+  bcs70$bcs1986x[, .(
+    bcsid, attSchl = q46.1, parInc = oe2,
+    .SD
+  ), .SDcols = c(workVars, jobVars, adultLifeVars)],
+  bcs70$bcs1986derived[, .(
+    bcsid = BCSID,
+    readScore = as.numeric(BD4RREAD)
+  )],
+  by = "bcsid"
+) %>%
   merge(
-    merge(
-      bcs70$bcs1986x[, .(bcsid, attSchl = q46.1, parInc = oe2,
-                         .SD), .SDcols = c(
-                           workVars, jobVars, adultLifeVars
-                         )],
-      bcs70$bcs1986derived[, .(bcsid = BCSID,
-                               readScore = as.numeric(BD4RREAD)
-                               )],
-      by = "bcsid"
-      ),
-    bcs70$bcs1986_arithmetic_data[, .(bcsid,
-                                      mathScore = as.numeric(mathscore))],
+    bcs70$bcs1986_arithmetic_data[, .(
+      bcsid,
+      mathScore = as.numeric(mathscore)
+    )],
     by = "bcsid", all = TRUE
-    ),
-  bcs70$bcs1996x[, .(bcsid, degree = fcase(b960219 == "23", T,
-                                           default = F),
-                     wkPay = wklypay)],
-  by = "bcsid", all = TRUE
-)
+  ) %>%
+  merge(
+    bcs70$bcs1996x[, .(bcsid, degree = fcase(b960219 == "23", T,
+                                             default = F),
+                       wkPay = wklypay)],
+    by = "bcsid", all = TRUE
+  ) %>%
+  merge(dtNonCog[, .(bcsid, selfEsteemScore, locScore, ghqScore)],
+        by = "bcsid", all = TRUE)
+
 
 setnames(dtBcs, function(x) stringr::str_remove(x, ".SD."))
 

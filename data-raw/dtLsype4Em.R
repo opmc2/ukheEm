@@ -21,6 +21,19 @@ load(here("data/lsype1FB.rda"))
 lsype1FB <- lapply(lsype1FB, as.data.table)
 lsype1YP <- lapply(lsype1YP, as.data.table)
 
+# noncognitive variables
+locVarsP <- paste0("W2Fat", c(1, 5, 8), "YP")
+locVarsN <- "W2Fat7YP"
+
+vars2keep <- c("NSID", locVarsP, locVarsN, "W2yschat1", "W2ghq12scr")
+
+dtNonCog <- lsype1YP[[2]][, ..vars2keep] %>%
+  .[, locScoreP := rowSums((sapply(.SD, as.numeric)*-1) + 4), .SDcols = locVarsP] %>%
+  .[, locScoreN := rowSums(sapply(.SD, as.numeric) - 1), .SDcols = locVarsN] %>%
+  .[, locScore := locScoreP + locScoreN]
+
+setnames(dtNonCog, old = c("W2yschat1", "W2ghq12scr"), new = c("att2schlScr", "ghqScr"))
+
 # select variables and merge waves FB1&4 and YP1&4
 dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
   NSID,
@@ -53,7 +66,8 @@ dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
       mainAct25_backcoded = W8DACTIVITYC
     )],
     by = c("NSID"), all = TRUE
-  )
+  ) %>%
+  merge(dtNonCog[, .(NSID, locScore, att2schlScr, ghqScr)], by = "NSID")
 
 # drops observations with missing data
 dtLsypeNoMissing <- dtLsypeWv4Wv8[
