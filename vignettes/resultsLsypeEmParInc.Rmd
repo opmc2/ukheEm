@@ -29,7 +29,7 @@ devtools::load_all()
 
 # functions
 signiff <- function(x, ...) if (is.numeric(x)) signif(x, digits = 3)
-saveFig <- function(x, ...) ggsave(here(figDir, x), width = 10, height = 6)
+saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = width, height = height)
 
 options(scipen = 15)
 
@@ -420,6 +420,20 @@ dtPkd[, muDNorm := (muD - mean(muD)) / sd(muD)]
 dtPkd[, alphaNorm := (alpha - mean(alpha)) / sd(alpha)]
 
 ggplot(
+  data = dtPkd[nTypes %between% c(2, 5), ],
+  mapping = aes(x = type, fill = d)
+) +
+  geom_col(aes(y = P_kd)) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_y_continuous(name = "Pr(k,d)") +
+  scale_fill_discrete(name = NULL) +
+  theme_classic() +
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("PrkdK2_K5.png", 7, 7)
+
+ggplot(
   data = dtPkd[nTypes %between% c(2, 9), ],
   mapping = aes(x = type, fill = d)
 ) +
@@ -462,12 +476,13 @@ saveFig("PrkdK8_K13.png")
 
 ggplot(
   data = dtPkd[nTypes %between% c(2, 9), ],
-  mapping = aes(x = type, y = muD, fill = d)
+  mapping = aes(x = type, y = muD, fill = d, alpha = P_kd)
 ) +
   geom_col(position = "dodge") +
   # geom_point(aes(y = alpha , shape = "log-wage (@25)"), stroke = .3) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Parental inc. (@16)") +
+  scale_alpha_continuous(range = c(.3, 1)) +
   theme_classic() +
   guides(shape = guide_legend()) +
   theme(text = element_text(size = 15), legend.position = "bottom") +
@@ -495,18 +510,36 @@ saveFig("MuByDK8_K13.png")
 ```{r group alpha by degree}
 
 ggplot(
-  data = dtPkd[nTypes %between% c(2, 7), ],
-  mapping = aes(x = type, y = alpha, fill = d)
+  data = dtPkd[nTypes %between% c(2, 5), ],
+  mapping = aes(x = type, y = alpha, fill = d, alpha = P_kd)
 ) +
   geom_col(position = "dodge") +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Log-wage (@25)") +
+  scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
+  scale_fill_discrete(name = NULL) + 
   theme_classic() +
   guides(shape = guide_legend()) +
   theme(text = element_text(size = 15), legend.position = "bottom") +
   coord_cartesian(ylim = c(5.8, 6.2))
 
-saveFig("AlphaByDK2_K9.png")
+saveFig("AlphaByDK2_K5.png", width = 7, height = 7)
+
+ggplot(
+  data = dtPkd[nTypes %between% c(2, 7), ],
+  mapping = aes(x = type, y = alpha, fill = d, alpha = P_kd)
+) +
+  geom_col(position = "dodge") +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_y_continuous(name = "Log-wage (@25)") +
+  scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
+  scale_fill_discrete(name = NULL) + 
+  theme_classic() +
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom") +
+  coord_cartesian(ylim = c(5.8, 6.2))
+
+saveFig("AlphaByDK2_K7.png")
 
 ggplot(
   data = dtPkd[nTypes %between% c(8, 13), ],
@@ -662,7 +695,8 @@ dtAssignedTypes <- merge(
   dtAssignedTypes[, .(nTypes, id, y1, y2, z, d, type, pk)], 
   dtLsypeWorkerFirm, 
   by = "id"
-)
+) %>% 
+  merge(dtLsype4Em[, .(id = NSID, locScore, att2schlScr, ghqScr)])
 
 ```
 
@@ -694,12 +728,18 @@ dtSumStats <- dtAssignedTypes[nTypes == 2, .(
   "1--24" = mean(firmSize %like% "1-24"),
   "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
+  "Attitude to schoo" = mean(att2schlScr, na.rm = TRUE),
+  "Locus of control" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScr, na.rm = TRUE),
   .N
 )] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE)
 
 xtable::xtable(dtSumStats, digits = 2)
+
+# occupations
+dtAssignedTypes[nTypes == 2, .(prop = .N / NN), by = .(NSSEC5)]
 
 ```
 
@@ -836,7 +876,12 @@ xtable::xtable(dtSumStats_topTypes)
 
 ```{r low types assigned types}
 
-dtSumStats_lowTypes <- dtAssignedTypes[type == 1 & nTypes %between% c(3,5), .(
+dtAssignedTypes[, group := fcase(
+  type == nTypes, factor(2, levels = 1:2, labels = c("Low type", "High type")),
+  type == 1, factor(1, levels = 1:2, labels = c("Low type", "High type"))
+)]
+
+dtSumStats_hilowTypes <- dtAssignedTypes[!is.na(group) & nTypes %between% c(3,5), .(
   "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
   "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
   "Wage (mean)" = mean(exp(y2)),
@@ -862,13 +907,17 @@ dtSumStats_lowTypes <- dtAssignedTypes[type == 1 & nTypes %between% c(3,5), .(
   "1--24" = mean(firmSize %like% "1-24"),
   "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
+  "Attitude to school" = mean(att2schlScr, na.rm = TRUE),
+  "Locus of control" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScr, na.rm = TRUE),
   .N
-), by = d] %>%
-  .[, names(.) := lapply(.SD, signiff), .SDcols = names(.)] %>%
+), by = .(group, d)] %>%
+  .[order(group, d)] %>%
+  # .[, names(.) := lapply(.SD, signif, digits = 4), .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE)
 
-xtable::xtable(dtSumStats_lowTypes)
+xtable::xtable(dtSumStats_hilowTypes, digits = 2)
 
 ```
 
@@ -953,7 +1002,7 @@ saveFig("OccupationsTopTypes.png")
 ```
 
 
-## Occupations of the high and low types
+### Occupations of the high and low types
 
 ```{r occupations}
 
@@ -989,8 +1038,9 @@ dtAssignedTypes[, group := fcase(
 dtAssignedTypes[!is.na(NSSEC5) & !is.na(group) & nTypes %between% c(3, 5), grpSize := .N, by = .(group, d)]
 
 
-dtAssignedTypes[!is.na(group) & nTypes %between% c(3, 5) & !is.na(NSSEC5), 
-                .(prop = .N / unique(grpSize)), by = .(group, NSSEC5, d)][order(NSSEC5, group, d)]
+as.data.table(t(dtAssignedTypes[!is.na(group) & nTypes %between% c(3, 5) & !is.na(NSSEC5), 
+                .(prop = .N / unique(grpSize)), by = .(group, NSSEC5, d)][order(group, d, NSSEC5)]),
+              keep.rownames = T)
 ```
 
 
