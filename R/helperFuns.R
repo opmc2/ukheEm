@@ -44,7 +44,7 @@ kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
     muSigmaRes <- list()
 
-  } else (isFALSE(y1cont)) {
+  } else if (isFALSE(y1cont)) {
 
     # y contains one pre-t outcome as binned data
     # K is the number of types
@@ -55,7 +55,7 @@ kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
     y[, svType := res$cluster]
     mu <- cbind(res$centers[,J], res$centers[, J])
     alphaSigmaRes <- list()
-    sigmaY <- y[, lapply(.SD, sd), .SDcols = paste0("y", 2:J),
+    if (J > 1) sigmaY <- y[, lapply(.SD, sd), .SDcols = paste0("y", 2:J),
                 by = svType][order(svType)]
     y[, pk := 1]
     for (k in 1:K) {
@@ -63,7 +63,7 @@ kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
         par = ellInit(y[svType == k]),
         fn = function(theta) -ell(theta, x = y[svType == k])
       )
-      mu[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
+      alpha[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
       sigmaY[svType == k, y1 := alphaSigmaRes[[k]]$par[[2]]]
     }
     sigmaW <- y[, sd(w),
