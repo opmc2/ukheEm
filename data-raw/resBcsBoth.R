@@ -22,8 +22,8 @@ for (K in 2:20) {
       id = "bcsid",
       left = "left",
       right = "right",
-      y1b = "combnScore",
-      y2 = "logWkPay",
+      y2 = "combnScore",
+      w = "logWkPay",
       z = "c5e7", # adult life benefits: live away from home
       d = "degree"
     ),
