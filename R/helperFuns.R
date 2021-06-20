@@ -29,79 +29,53 @@
 #'     \item \code{muSigmaRes} An intermediate list containing results of ML to
 #'       make y1 continuous if it is not. i.e. if \code{y1cont == FALSE}.
 #'   }
-kmeansSVs <- function(y, K, y1cont = TRUE, y1b = FALSE) {
+kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
   if (isTRUE(y1cont)) {
+
     # y should be a vector or matrix containing the continuous outcomes, and
     # K is the number of types
+
     res <- kmeans(y, centers = K, nstart = 5)
-    mu <- res$centers[, 1]
-    alpha <- cbind(res$centers[, 2], res$centers[, 2])
+    alpha <- res$centers[, 1:J]
+    mu <- cbind(res$centers[,J+1], res$centers[, J+1])
     y[, svType := res$cluster]
-    sigmas <- y[, .(sigmaNu = sd(y1), sigmaEps = sd(y2)),
+    sigmaY <- y[, lapply(.SD, sd), .SDcols = paste0("y", 1:J),
                 by = svType][order(svType)]
-    sigmaNu <- sigmas$sigmaNu
-    sigmaEps <- cbind(sigmas$sigmaEps, sigmas$sigmaEps)
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
     muSigmaRes <- list()
-  } else if (isTRUE(y1b)) {
-    # y contains a continuous outcome (currently y2), "left" and "right" for
-    # binned data, and continuous y1b.
+
+  } else (isFALSE(y1cont)) {
+
+    # y contains one pre-t outcome as binned data
     # K is the number of types
-    res <- kmeans(y[, .(y1b, y2)], centers = K, nstart = 5)
-    muB <- res$centers[, 1]
-    alpha <- cbind(res$centers[, 2], res$centers[, 2])
+
+    res <- kmeans(y[, -c("left", "right")], centers = K, nstart = 5)
+    alpha <- matrix(nrow = K, ncol = J)
+    if (J > 1) alpha[, -1] <- res$centers[, 1:J-1]
     y[, svType := res$cluster]
-    muSigmaRes <- list()
-    mu <- numeric(length = K)
-    sigmaNu <- numeric(length = K)
+    mu <- cbind(res$centers[,J], res$centers[, J])
+    alphaSigmaRes <- list()
+    sigmaY <- y[, lapply(.SD, sd), .SDcols = paste0("y", 2:J),
+                by = svType][order(svType)]
     y[, pk := 1]
     for (k in 1:K) {
-      muSigmaRes[[k]] <- optim(
+      alphaSigmaRes[[k]] <- optim(
         par = ellInit(y[svType == k]),
         fn = function(theta) -ell(theta, x = y[svType == k])
       )
-      mu[[k]] <- muSigmaRes[[k]]$par[[1]]
-      sigmaNu[[k]] <- muSigmaRes[[k]]$par[[2]]
+      mu[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
+      sigmaY[svType == k, y1 := alphaSigmaRes[[k]]$par[[2]]]
     }
-    sigmaEps <- y[, sd(y2),
-                  by = svType][order(svType)][, V1]
-    P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
-  } else {
-    # y contains a continuous outcome (currently y2) and "left", "right" for
-    # binned data.
-    # K is the number of types
-    res <- kmeans(y[, y2], centers = K, nstart = 5)
-    alpha <- cbind(res$centers[, 1], res$centers[, 1])
-    y[, svType := res$cluster]
-    muSigmaRes <- list()
-    mu <- numeric(length = K)
-    sigmaNu <- numeric(length = K)
-    y[, pk := 1]
-    for (k in 1:K) {
-      muSigmaRes[[k]] <- optim(
-        par = ellInit(y[svType == k]),
-        fn = function(theta) -ell(theta, x = y[svType == k])
-      )
-      mu[[k]] <- muSigmaRes[[k]]$par[[1]]
-      sigmaNu[[k]] <- muSigmaRes[[k]]$par[[2]]
-    }
-    sigmaEps <- y[, sd(y2),
+    sigmaW <- y[, sd(w),
                   by = svType][order(svType)][, V1]
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
   }
-  if (isTRUE(y1b)) {
-    return(list(
-      P_k = P_k, mu = mu, muB = muB, alpha = alpha, sigmaNu = sigmaNu,
-      sigmaEps = sigmaEps, svTypes = res$cluster,
-      muSigmaRes = muSigmaRes
-    ))
-  } else {
-    return(list(
-      P_k = P_k, mu = mu, alpha = alpha, sigmaNu = sigmaNu,
-      sigmaEps = sigmaEps, svTypes = res$cluster,
-      muSigmaRes = muSigmaRes
-    ))
-  }
+
+  return(list(
+    P_k = P_k, mu = mu, alpha = alpha, sigmaY = sigmaY,
+    sigmaW = sigmaW, svTypes = res$cluster,
+    alphaSigmaRes = alphaSigmaRes
+  ))
 
 }
 
