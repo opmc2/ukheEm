@@ -30,8 +30,8 @@
 #'   should be:
 #'   \itemize{
 #'     \item \code{id}: a unique id for each individual
-#'     \item \code{y1}: the pre-treatment outcome
-#'     \item \code{y2}: the post-treatment outcome (log-wages)
+#'     \item \code{y1-yJ}: the J pre-treatment outcomes
+#'     \item \code{w}: the post-treatment outcome (log-wages)
 #'     \item \code{z}: the instrument
 #'     \item \code{d}: the treatment (university here)
 #'   }
@@ -39,7 +39,7 @@
 #'   of starting values for the algorithm.
 #' @param maxiter An integer specifying the maximum number of iterations before
 #'   stopping.
-#' @param y1cont A logical value indicating whether the first outcome is
+#' @param y1cont A logical value indicating whether the first pre-t outcome is
 #'   continuous. If \code{y1cont} is set to \code{FALSE}, a special ML routine
 #'   is used, and the data.table \code{dt} \strong{must} contain two extra
 #'   columns, \code{left} and \code{right}:
@@ -47,6 +47,7 @@
 #'     \item the lower bound of the interval containing \code{y1} (\code{left})
 #'     \item the upper bound of the interval containing \code{y1} (\code{right})
 #'   }
+#' @param J An integer equal to the number of pre-treatment outcomes.
 #' @return Returns a named list containing:
 #' \describe{
 #'   \item{\code{listLoglike}}{A list containing the log-likelihood after each
@@ -63,7 +64,7 @@ progUkheEm <- function(
   startVals = "kmeans",
   maxiter = 400,
   y1cont = TRUE,
-  y1b = FALSE
+  J = 1
 ) {
 
   if (is.character(dt)) dt <- load(here::here(dt))
