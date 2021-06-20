@@ -120,57 +120,66 @@ progUkheEm <- function(
 
   while(iter < maxiter & abs(delta) > tol) {
 
-    # NOTE: E-step is at end as first loop in technically zero-th iteration
+    # NOTE: E-step is at end as first loop is technically zero-th iteration
 
     # ---- M-step ----
 
     # update mu and sigmaNu (parameters of the test score distribution)
 
     if (isTRUE(y1cont)) {
-      dtLong[, c("mu", "sigmaNu") := .(
-        Hmisc::wtd.mean(y1, pk),
-        sqrt(Hmisc::wtd.var(y1, pk))
-      ), by = .(type)]
+      dtLong[, paste0("alpha", 1:J) := lapply(
+        .SD, Hmisc::wtd.mean, weights = pk
+      ), by = .(type), .SDcols = paste0("y", 1:J)]
 
-    } else if (isTRUE(y1b)) {
-      dtLong[, c("muB", "sigmaNuB") := .(
-        Hmisc::wtd.mean(y1b, pk),
-        sqrt(Hmisc::wtd.var(y1b, pk))
-      ), by = .(type)]
-      muSigmaRes <- list()
+      dtLong[, paste0("sigmaY", 1:J) := lapply(
+        .SD, wtd.sd, weights = pk
+      ), by = .(type), .SDcols = paste0("y", 1:J)]
+
+    } else if (J > 1) {
+      alphaSigmaRes <- list()
       for (k in 1:K) {
-        muSigmaRes[[k]] <- optim(
-          par = c(muVec[[k]], sigmaNuVec[[k]]),
+        alphaSigmaRes[[k]] <- optim(
+          par = c(alpha[k, 1], sigmaY[k, 1]),
           fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
         )
-        muVec[[k]] <- muSigmaRes[[k]]$par[[1]]
-        sigmaNuVec[[k]] <- muSigmaRes[[k]]$par[[2]]
-        dtLong[type == k, c("mu", "sigmaNu") := .(muVec[[k]], sigmaNuVec[[k]])]
+        alpha[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
+        sigmaY[k, 1] <- alphaSigmaRes[[k]]$par[[2]]
+        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[k, 1], sigmaY[k, 1])]
+
+        dtLong[, paste0("alpha", 2:J) := lapply(
+          .SD, Hmisc::wtd.mean, weights = pk
+        ), by = .(type), .SDcols = paste0("y", 2:J)]
+
+        dtLong[, paste0("sigmaY", 2:J) := lapply(
+          .SD, wtd.sd, weights = pk
+        ), by = .(type), .SDcols = paste0("y", 2:J)]
+
       }
-
     } else {
-      muSigmaRes <- list()
+
+      alphaSigmaRes <- list()
       for (k in 1:K) {
-        muSigmaRes[[k]] <- optim(
-          par = c(muVec[[k]], sigmaNuVec[[k]]),
+        alphaSigmaRes[[k]] <- optim(
+          par = c(alpha[k, 1], sigmaY[k, 1]),
           fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
         )
-        muVec[[k]] <- muSigmaRes[[k]]$par[[1]]
-        sigmaNuVec[[k]] <- muSigmaRes[[k]]$par[[2]]
-        dtLong[type == k, c("mu", "sigmaNu") := .(muVec[[k]], sigmaNuVec[[k]])]
+        alpha[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
+        sigmaY[k, 1] <- alphaSigmaRes[[k]]$par[[2]]
+        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[k, 1], sigmaY[k, 1])]
+
       }
     }
 
 
     # update alpha and sigmaEps (parameters of the wage dist. @25)
 
-    dtLong[, c("alpha", "sigmaEps") := .(
-      ifelse(is.na(Hmisc::wtd.mean(y2, pk)),
-             alpha,
-             Hmisc::wtd.mean(y2, pk)),
-      ifelse(is.na(sqrt(Hmisc::wtd.var(y2, pk))),
-             sigmaEps,
-             sqrt(Hmisc::wtd.mean(y2, pk)))),
+    dtLong[, c("mu", "sigmaW") := .(
+      ifelse(is.na(Hmisc::wtd.mean(w, pk)),
+             mu,
+             Hmisc::wtd.mean(w, pk)),
+      ifelse(is.na(wtd.sd(w, pk)),
+             sigmaW,
+             sqrt(Hmisc::wtd.mean(w, pk)))),
       by = .(type, d)]
 
 
@@ -181,22 +190,36 @@ progUkheEm <- function(
 
 
     # update likelihood|K
+    # currently only w is log normal. other outcomes are assumed normal.
     if (isTRUE(y1cont)) {
-      dtLong[, likelihoodK := pi_kzd *
-               dnorm(y1, mean = mu, sd = sigmaNu) *
-               1 / exp(y2) * dnorm(y2, mean = alpha, sd = sigmaEps)]
 
-    } else if (isTRUE(y1b)) {
+      if (J == 1) {
+        dtLong[, likelihoodK := pi_kzd *
+                 dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                 1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+      } else if (J == 2) {
+        dtLong[, likelihoodK := pi_kzd *
+                 dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                 dnorm(y2, mean = alpha2, sd = sigmaY2) *
+                 1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+      } else if (J > 2) {
+        print("There are too many pre-t outcomes.")
+        stop()
+      }
+    } else if (J == 1) {
       dtLong[, likelihoodK := pi_kzd *
-               (pnorm(right, mean = mu, sd = sigmaNu) -
-                  pnorm(left, mean = mu, sd = sigmaNu)) *
-               dnorm(y1b, mean = muB, sd = sigmaNuB) *
-               (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
-    } else {
+               (pnorm(right, mean = alpha1, sd = sigmaY1) -
+                  pnorm(left, mean = alpha1, sd = sigmaY1)) *
+               (1 / exp(w)) * dnorm(w, mean = mu, sd = sigmaW)]
+    } else if (J == 2) {
       dtLong[, likelihoodK := pi_kzd *
-               (pnorm(right, mean = mu, sd = sigmaNu) -
-                  pnorm(left, mean = mu, sd = sigmaNu)) *
-               (1 / exp(y2)) * dnorm(y2, mean = alpha, sd = sigmaEps)]
+               (pnorm(right, mean = alpha1, sd = sigmaY1) -
+                  pnorm(left, mean = alpha1, sd = sigmaY1)) *
+               dnorm(y2, mean = alpha2, sd = sigmaY2) *
+               (1 / exp(w)) * dnorm(w, mean = mu, sd = sigmaW)]
+    } else if (J > 2) {
+      print("There are too many pre-t outcomes.")
+      stop()
     }
 
 
