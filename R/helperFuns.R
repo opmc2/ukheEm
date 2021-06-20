@@ -111,3 +111,10 @@ ellInit <- function(x) {
   mid <- (x[, left] + x[, right]) / 2
   c(mean(mid, na.rm = T), sd(mid, na.rm = TRUE))
 }
+
+#' Weighted standard deviation
+#'
+#' Calculates weighted standard deviation as the square root of wtd.var.
+#'
+#' @inheritParams Hmisc::wtd.var
+wtd.sd <- function(...) sqrt(Hmisc::wtd.var(...))
