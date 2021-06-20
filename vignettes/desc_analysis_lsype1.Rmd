@@ -255,7 +255,7 @@ ggplot(
 #   width = 10, height = 6
 # )
 
-
+dtLsype4Em[, median(grssWkPay25, na.rm = TRUE), by = degree25]
 ```
 
 ## Non-cognitive skills

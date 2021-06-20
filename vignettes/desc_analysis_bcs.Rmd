@@ -218,7 +218,9 @@ ggplot(data = dtBcs4Em,
   geom_density() +
   theme_classic()
 
-hist(dtNonCog$ghqScore)
+
+dtBcs4Em[, median(wkPay), by = degree]
+
 ```
 
 
