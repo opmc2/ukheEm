@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------------
 ## progUkHeEm.R
 ##
-## Project: UK HE Experience
+## Project: UK HE returns + determinants
 ## Purpose: Contains the main function to implement the EM algorithm.
 ## Author: Oliver Cassagneau-Francis
 ## Date: Mon Aug 10 14:25:01 2020
