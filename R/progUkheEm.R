@@ -77,25 +77,21 @@ progUkheEm <- function(
 
   NN <- dt[, .N]
 
+  if (isFALSE(y1cont)) {
+    outcomes <- c("left", "right", paste0("y", 2:J), "w")
+  } else {
+    outcomes <- c(paste0("y", 1:J), "w")
+  }
+
   # set start values
-  if (is.character(startVals)) {
-    if (startVals == "kmeans" & isTRUE(y1b) & isFALSE(y1cont)) {
-      startVals <- kmeansSVs(dt[, .(left, right, y1b, y2)], K,
-                             y1cont = FALSE, y1b = TRUE)
-    } else if (startVals == "kmeans" & isTRUE(y1cont)) {
-      startVals <- kmeansSVs(dt[, .(y1, y2)], K, y1cont = TRUE)
-    } else if (startVals == "kmeans") {
-      startVals <- kmeansSVs(dt[, .(left, right, y2)], K, y1cont = FALSE)
-    }
+  if (startVals == "kmeans") {
+      startVals <- kmeansSVs(dt[, ..outcomes], K, y1cont = y1cont, J = J)
   }
 
   dt[, svType := startVals$svTypes]
 
-  # initial mu and sigmaNu for starting values
-  if (isFALSE(y1cont)) {
-    sigmaNuVec <- startVals$sigmaNu
-    muVec <- startVals$mu
-  }
+  alpha <- startVals$alpha
+  sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
 
   # make dt long by types
   dtLong <- list()
