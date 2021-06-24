@@ -47,6 +47,8 @@
 #'     \item the lower bound of the interval containing \code{y1} (\code{left})
 #'     \item the upper bound of the interval containing \code{y1} (\code{right})
 #'   }
+#' @param y1log A logical value indicating if the first pre-t measurement is in
+#'   logs.
 #' @param J An integer equal to the number of pre-treatment outcomes.
 #' @return Returns a named list containing:
 #' \describe{
@@ -63,7 +65,7 @@ progUkheEm <- function(
   dt, K, varList,
   startVals = "kmeans",
   maxiter = 400,
-  y1cont = TRUE,
+  y1cont = TRUE, y1log = FALSE,
   J = 1
 ) {
 
