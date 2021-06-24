@@ -1,5 +1,5 @@
 ## --------------------------------------------------------------------------- #
-## resLsype.R
+## resLsypeParInc.R
 ##
 ## Project: UK HE EM
 ## Purpose: Runs progUkheEm() on Next Steps (lsype) data and saves
