@@ -194,19 +194,46 @@ progUkheEm <- function(
     # update likelihood|K
     # currently only w is log normal. other outcomes are assumed normal.
     if (isTRUE(y1cont)) {
-
-      if (J == 1) {
-        dtLong[, likelihoodK := pi_kzd *
-                 dnorm(y1, mean = alpha1, sd = sigmaY1) *
-                 1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
-      } else if (J == 2) {
-        dtLong[, likelihoodK := pi_kzd *
-                 dnorm(y1, mean = alpha1, sd = sigmaY1) *
-                 dnorm(y2, mean = alpha2, sd = sigmaY2) *
-                 1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
-      } else if (J > 2) {
-        print("There are too many pre-t outcomes.")
-        stop()
+      if (isTRUE(y1log)) {
+        if (J == 1) {
+          dtLong[, likelihoodK := pi_kzd *
+                   1 / exp(y1) * dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J == 2) {
+          dtLong[, likelihoodK := pi_kzd *
+                   1 / exp(y1) * dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   dnorm(y2, mean = alpha2, sd = sigmaY2) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J == 3) {
+          dtLong[, likelihoodK := pi_kzd *
+                   1 / exp(y1) * dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   dnorm(y2, mean = alpha2, sd = sigmaY2) *
+                   dnorm(y3, mean = alpha3, sd = sigmaY3) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J > 3) {
+          print("There are too many pre-t outcomes.")
+          stop()
+        }
+      } else {
+        if (J == 1) {
+          dtLong[, likelihoodK := pi_kzd *
+                   dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J == 2) {
+          dtLong[, likelihoodK := pi_kzd *
+                   dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   dnorm(y2, mean = alpha2, sd = sigmaY2) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J == 3) {
+          dtLong[, likelihoodK := pi_kzd *
+                   dnorm(y1, mean = alpha1, sd = sigmaY1) *
+                   dnorm(y2, mean = alpha2, sd = sigmaY2) *
+                   dnorm(y3, mean = alpha3, sd = sigmaY3) *
+                   1 / exp(w) * dnorm(w, mean = mu, sd = sigmaW)]
+        } else if (J > 3) {
+          print("There are too many pre-t outcomes.")
+          stop()
+        }
       }
     } else if (J == 1) {
       dtLong[, likelihoodK := pi_kzd *
@@ -219,7 +246,14 @@ progUkheEm <- function(
                   pnorm(left, mean = alpha1, sd = sigmaY1)) *
                dnorm(y2, mean = alpha2, sd = sigmaY2) *
                (1 / exp(w)) * dnorm(w, mean = mu, sd = sigmaW)]
-    } else if (J > 2) {
+    } else if (J == 3) {
+      dtLong[, likelihoodK := pi_kzd *
+               (pnorm(right, mean = alpha1, sd = sigmaY1) -
+                  pnorm(left, mean = alpha1, sd = sigmaY1)) *
+               dnorm(y2, mean = alpha2, sd = sigmaY2) *
+               dnorm(y3, mean = alpha3, sd = sigmaY3) *
+               (1 / exp(w)) * dnorm(w, mean = mu, sd = sigmaW)]
+    } else if (J > 3) {
       print("There are too many pre-t outcomes.")
       stop()
     }
