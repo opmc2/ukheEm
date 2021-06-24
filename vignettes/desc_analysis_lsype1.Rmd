@@ -308,6 +308,21 @@ cols2keep <- c("NSID", nonCogVars, paste0(nonCogVars, "_std"))
 nonCogScores <- dtNonCog[!is.na(locScore) & !is.na(ghqScr) & 
                            !is.na(att2schlScr), ..cols2keep]
 
+ggplot(data = dtLsype4Em) +
+  # geom_density(aes(x = locScore_std, colour = "LOC")) +
+  geom_density(aes(x = att2schlScr_std, colour = "Att. to school")) +
+  geom_density(aes(x = ghqScr_std, colour = "GHQ")) +
+  geom_density(aes(x = noncogScore, colour = "Noncog")) +
+  theme_classic()
+
+library(mice)
+
+md.pattern(dtLsype4Em[, .(noncogScore, logParInc, logWkPay, leaveHome, degree25)])
+
+dtLsype4Em[complete.cases(dtLsype4Em[, .(locScore, att2schlScr, ghqScr)])]
+```
+
+```{r 3d plots noncog}
 den3d_locghq <- MASS::kde2d(x = nonCogScores$locScore, y = nonCogScores$ghqScr)
 den3d_locatt <- MASS::kde2d(x = nonCogScores$locScore, y = nonCogScores$att2schlScr, n = 15)
 den3d_attghq <- MASS::kde2d(x = nonCogScores$att2schlScr, y = nonCogScores$ghqScr)
