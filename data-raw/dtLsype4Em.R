@@ -34,6 +34,13 @@ dtNonCog <- lsype1YP[[2]][, ..vars2keep] %>%
 
 setnames(dtNonCog, old = c("W2yschat1", "W2ghq12scr"), new = c("att2schlScr", "ghqScr"))
 
+stdise <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+
+# normalise and combine noncog scores
+dtNonCog[, paste0(c("locScore", "att2schlScr", "ghqScr"), "_std") := lapply(.SD, stdise),
+         .SDcols = c("locScore", "att2schlScr", "ghqScr")]
+dtNonCog[, noncogScore := (stdise(locScore) + stdise(att2schlScr) - stdise(ghqScr)) / 3]
+
 # select variables and merge waves FB1&4 and YP1&4
 dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
   NSID,
@@ -67,7 +74,11 @@ dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
     )],
     by = c("NSID"), all = TRUE
   ) %>%
-  merge(dtNonCog[, .(NSID, locScore, att2schlScr, ghqScr)], by = "NSID")
+  merge(dtNonCog[, .(NSID,
+                     locScore, att2schlScr, ghqScr,
+                     locScore_std, att2schlScr_std, ghqScr_std,
+                     noncogScore)],
+        by = "NSID")
 
 # drops observations with missing data
 dtLsypeNoMissing <- dtLsypeWv4Wv8[
