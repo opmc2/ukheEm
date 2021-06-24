@@ -263,13 +263,32 @@ progUkheEm <- function(
     dtLong[, likelihood := sum(likelihoodK), by = id]
 
     # save parameters and likelihoods
-    listParams[[iter]] <- dtLong[, .(
-      mu = mean(mu),
-      alpha = mean(alpha),
-      sigmaNu = mean(sigmaNu),
-      sigmaEps = mean(sigmaEps),
-      pi_kzd = mean(pi_kzd)
-    ), by = .(type, d, z)]
+    if (J == 1) {
+      listParams[[iter]] <- dtLong[, .(
+        alpha1 = mean(alpha1),
+        sigmaY1 = mean(sigmaY1),
+        mu = mean(mu),
+        sigmaW = mean(sigmaW),
+        pi_kzd = mean(pi_kzd)
+      ), by = .(type, d, z)]
+    } else if (J == 2) {
+      listParams[[iter]] <- dtLong[, .(
+        alpha1 = mean(alpha1), alpha2 = mean(alpha2),
+        sigmaY1 = mean(sigmaY1), sigmaY2 = mean(sigmaY2),
+        mu = mean(mu),
+        sigmaW = mean(sigmaW),
+        pi_kzd = mean(pi_kzd)
+      ), by = .(type, d, z)]
+    } else if (J == 3) {
+      listParams[[iter]] <- dtLong[, .(
+        alpha1 = mean(alpha1), alpha2 = mean(alpha2), alpha3 = mean(alpha3),
+        sigmaY1 = mean(sigmaY1), sigmaY2 = mean(sigmaY2),
+        sigmaY3 = mean(sigmaY3),
+        mu = mean(mu),
+        sigmaW = mean(sigmaW),
+        pi_kzd = mean(pi_kzd)
+      ), by = .(type, d, z)]
+    }
 
     listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
     listLoglike[[iter]] <- dtLong[type == "1", sum(log(likelihood))]
