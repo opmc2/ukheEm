@@ -41,8 +41,10 @@ kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
     y[, svType := res$cluster]
     sigmaY <- y[, lapply(.SD, sd), .SDcols = paste0("y", 1:J),
                 by = svType][order(svType)]
+    sigmaW <- y[, sd(w),
+                by = svType][order(svType)][, V1]
     P_k <- y[, .N, by = svType][order(svType)][, N] / y[, .N]
-    muSigmaRes <- list()
+    alphaSigmaRes <- list()
 
   } else if (isFALSE(y1cont)) {
 
