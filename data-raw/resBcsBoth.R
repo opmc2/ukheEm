@@ -28,9 +28,11 @@ for (K in 2:20) {
       d = "degree"
     ),
     maxiter = 400,
-    y1cont = FALSE, y1b = TRUE
+    y1cont = FALSE,
+    J = 2
   )
   print(paste0("K = ", K, " completed."))
 }
 
-use_data(resBcsBoth, overwrite = TRUE)
+resBcsBothV2 <- resBcsBoth
+use_data(resBcsBothV2, overwrite = TRUE)
