@@ -16,6 +16,7 @@
 #' @param y A vector or matrix.
 #' @param K A number (of types / groups).
 #' @param y1cont A logical indicating the first component of y is continuous.
+#' @param J An integer with the number of pre-treatment outcomes.
 #' @return A list of the starting values and other information.
 #'   \itemize{
 #'     \item \code{P_k} The proportions assigned to each group by
@@ -80,6 +81,69 @@ kmeansSVs <- function(y, K, y1cont = TRUE, J = 1) {
   ))
 
 }
+
+#' K-means Starting Values (multidimensional types)
+#'
+#' Uses \code{\link[stats]{kmeans}} to select starting values for the EM
+#' algorithm.
+#'
+#' @param y A vector or matrix containing the outcomes.
+#' @param K A vector containing the number of types / groups.
+#' @param y1cont A logical indicating the first component of y is continuous.
+#' @param J An integer with the number of pre-treatment outcomes.
+#' @return A list of the starting values and other information.
+#'   \itemize{
+#'     \item \code{P_k} The proportions assigned to each group by
+#'     \code{\link[stats]{kmeans}}
+#'     \item \code{mu} The mean pre-treatment outcomes for each group
+#'     \item \code{alpha} The mean post-treatment outcomes for each group
+#'     \item \code{sigmaNu, sigmaEps} The standardard deviation of the pre- and
+#'       post-treatment outcomes for each group
+#'     \item \code{svTypes} The groups assigned to each observation by
+#'       \code{\link[stats]{kmeans}}, i.e. \code{cluster}
+#'     \item \code{muSigmaRes} An intermediate list containing results of ML to
+#'       make y1 continuous if it is not. i.e. if \code{y1cont == FALSE}.
+#'   }
+kmeansSVs_md <- function(y, K, y1cont = TRUE, J = length(K)) {
+
+  # y should be a vector or matrix containing the continuous outcomes, and
+  # K is the number of types
+
+  if (isFALSE(y1cont)) y[, y1 := left + right / 2]
+
+  res <- list()
+  alpha <- list()
+  for (j in 1:J) {
+    res[[j]] <- kmeans(y[[paste0("y", j)]], centers = K[[j]], nstart = 5)
+    alpha[[j]] <- res[[j]]$centers
+    y[, paste0("svType", j) := res[[j]]$cluster]
+  }
+
+  if (J == 1) {
+    y[, svType := paste0(svType1)]
+  } else if (J == 2) {
+    y[, svType := paste0(svType1, svType2)]
+  } else if (J == 3) {
+    y[, svType := paste0(svType1, svType2, svType3)]
+  } else {
+    print("J > 3")
+  }
+
+  y[, c("alpha1", "sigmaY1") := .(mean(y1), sd(y1)), by = svType1]
+  if (J > 1) y[, c("alpha2", "sigmaY2") := .(mean(y2), sd(y2)), by = svType2]
+  if (J > 2) y[, c("alpha3", "sigmaY3") := .(mean(y3), sd(y3)), by = svType3]
+
+  y[, c("mu", "sigmaW") := .(mean(w), sd(w)), by = svType]
+  NN <- y[, .N]
+  y[, P_k := .N / NN, by = svType]
+
+  return(list(
+    y = y, res = res, alpha = alpha
+  ))
+
+}
+
+
 
 # likelihood to fit Gaussian to binned data
 #
