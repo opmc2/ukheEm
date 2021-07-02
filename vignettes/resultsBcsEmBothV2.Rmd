@@ -360,6 +360,40 @@ saveFig("wagePremK8_K13.png")
 
 ```
 
+```{r unconditional ATEs}
+
+dtWPuncond <- merge(
+  dtWagePrem,
+  bigDt[d == TRUE, .(
+    P_kdT = sum(pk) / .N
+  ), by = .(nTypes, type)],
+  by = c("nTypes", "type")
+) %>% 
+  .[, .(
+  WPu = sum(P_k * wagePrem),
+  WPu_dT = sum(P_kdT * wagePrem)
+), by = nTypes]
+
+
+ggplot(data = dtWPuncond,
+       mapping = aes(x = nTypes)) +
+  geom_col(aes(y = WPu, fill = "ATE", colour = "ATE")) +
+  geom_col(aes(y = WPu_dT, fill = "ATT", colour = "ATT")) +
+  scale_x_continuous(name = "Number of types (K)") +
+  scale_y_continuous(name = "", limits = c(0, .25)) +
+  scale_fill_manual(name = "",
+                    values = c("red", NA),
+                    limits = c("ATE", "ATT")) +
+  scale_colour_manual(name = "",
+                      values = c(NA, "blue"),
+                      limits = c("ATE", "ATT")) +
+  theme_classic() +
+  theme(text = element_text(size = 15), legend.position = c(.9, .9))
+
+saveFig("uncondWP.png")
+
+```
+
 
 ## Pr(k,d)
 
