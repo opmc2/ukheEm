@@ -1,0 +1,323 @@
+---
+title: "chvAnalysisBcs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{chvAnalysisBcs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: ukhe.bib
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+load_all()
+```
+
+This vignette contains my attempt to recreate the analysis in @carneiro_estimating_2011 (henceforth CHV) using British cohort data, specifically the British Cohort Study (BCS) 1970. 
+
+## The model and the MTE
+
+The model CHV estimate is a generalised Roy model, with two "sectors" college and no college. 
+
+(Potential) outcomes depend on college attendance and some observed characteristics ($X$):
+$$
+Y_1 = \mu_1(X) + U_1 \,\, \text{and} \,\, Y_0 = \mu_0(X) + U_0
+$$
+where $\mu_1(x) \equiv E(Y_1|X=x)$ amd $\mu_0(x) \equiv E(Y_0|X=x)$. The return to college is $Y_1 - Y_0 = \beta = \mu_1(X) - \mu_0(X) + U_1 - U_0$, so that the ATE(x) is $\beta(x) = E(\beta|X=x) = \mu_1(X) - \mu_0(X)$, and the ATT(x) is $E(\beta|X=x,S=1) = \beta(x) + E(U_1 - U_0|S=1,X=x)$. 
+
+The decision to attend college is modelled as a latent variable discrete choice:
+$$
+I_S = \mu_S(Z) - V \\
+S = \begin{cases} 1 & \text{if } I_S \geq 0 \\ 0 & \text{otherwise.} \end{cases}
+$$
+The econometrician observes $(Z,X)$ but not $(U_1, U_0, V)$. $Z$ may contain (some or all of) $X$, but there are some $z \in Z$ that are not in $X$---exclusion restrictions or instruments. We need to introduce some more notation to fully present the CHV model. 
+
+The propensity score to attend college ($S=1$) conditional on $Z = z$ is
+$$
+P(z) \equiv \Pr(S=1|Z=z) = F_V(\mu_S(Z))
+$$
+and we define a new variable $U_S = F_V(V)$ i.e. the quantiles of the unobserved component of the latent variable determining university attendance. The latent variable equation becomes $S = 1$ if $P(Z) \geq U_S$.
+
+CHV then define what they call the marginal treatment effect, or MTE, the key object in their analysis:
+$$
+MTE(x,u_S) \equiv E(\beta | X = x, U_S = u_s)
+$$
+They derive the following expression for the MTE:
+$$
+E(Y|X=x, P(Z) = p) = \mu_0(x) + \int_0^p MTE(x, u_S) d u_S.
+$$
+where the left hand side is observable (or at least estimable!) and can be differentiated wrt $p$ to give
+$$
+\frac{\partial E(Y|X=x, P(Z) = p)}{\partial p} = MTE(x,p)
+$$
+## Estimation
+
+CHV make some additional assumptions for estimation, assuming linear-in-parameters forms for $\mu_1(X), \mu_0(X)$ and $\mu_S(Z)$: $\mu_1(X) = X\delta_1, \mu_0(X) = X\delta_0, \mu_S(Z) = Z\gamma$. Then
+$$
+E(Y|X=x, P(Z) = p) = x\delta_0 + px[\delta_1 - \delta_0] + K(p)
+$$
+and CHV estimate $K(p)$ nonparametrically. 
+
+CHV also present a parametric approach assuming $(U_1, U_0, V)$ are jointly normal and independent of ($X,Z$), and the variance of $V$ is normalised to one. Then:
+$$
+MTE(x,u_S) = x(\delta_1 - \delta_0) + E(U_1 - U_0 |U_S = u_S) \\
+\phantom{MTE(x,u_S).....} = x(\delta_1 - \delta_0) + E(U_1 - U_0 |V = \Phi^{-1}(u_S)) \\
+\phantom{MTE(x,u_S)} = x(\delta_1 - \delta_0) - (\sigma_{1V} - \sigma_{0V})\Phi^{-1}(u_S).
+$$
+where $\sigma_{1V} = Cov(U_1, V), \sigma_{0V} = Cov(U_0, V)$ and $\Phi^{-1}(\cdot)$ is the inverse of the standard normal CDF. 
+
+## Data 
+
+I try to match the variables used by CHV as closely as possible. Below I replicate a table from CHV replacing the details of their variable with those in the BCS 1970. 
+
+| Variable | Definition                                                                                                                                                                                                                                                   |
+|----------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| $Y$        | Log-wage in 1996 (age 25) [`hpaycor` or `wklypayc` in `bcs1996x`]                                                                                                                                                                                                                                   |
+| $S=1$      | If completed a degree before 1986; zero otherwise [`degree` in `bcs1996x`]                                                                                                                                                                                                             |
+| $X$        | Ability [test scores in `bcs1986x`], mother's education [`t7.2` age mother finished FT education], number of siblings [`f7` in `bcs1986x` number of children], average log earnings 1985--2005 in county of residence at 16 [ONS website / data-raw],  average unemployment 1985--2005 in region of residence at 16 [nomis], urban residence at 16 [`c6.13` in `bcs1986x`], years of experience in 1996 [`b960132` in `bcs1996x` age left FT education], local unemployment in 1996, [sex?, ethnicity? (CHV is on a sample of white males)] |
+| $Z \setminus X$      | [Presence of a college at age 14 (in county?) not useful in UK], local earnings at 16 [see data-raw], local unemployment at 16 [nomis], [local tuition not useful in UK], [leave home? (my instrument)]                                                                                                                           |
+
+
+```{r bcs variables}
+
+stdise <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+
+dtBcs4Chv <- merge(
+  bcs70$bcs1996x[, .(bcsid, 
+                     logWage = log(hpaycor), sex,
+                     degree = fcase(b960219 == "23", T, default = F),
+                     exper = 26 - as.numeric(paste0(b960132)))],
+  bcs70$bcs1986x[, .(bcsid, 
+                     motherEduc = as.numeric(paste0(t7.2)) - 4,
+                     siblings = as.numeric(paste0(f7)), 
+                     urban = c6.13,
+                     leaveHome = c5e7,
+                     nonWhite = (c6.14 != "European")
+                     )], 
+  by = "bcsid", all = TRUE
+) %>%
+  merge(
+    bcs70$bcs1986derived[, .(
+      bcsid = BCSID, 
+      readScore = stdise(as.numeric(paste0(BD4READ))),
+      region =  BD4REGN, regionGov = BD4GOR
+    )],
+    by = "bcsid", all = TRUE
+  ) %>% 
+  merge(
+    bcs70$bcs1986_arithmetic_data[, .(
+      bcsid, 
+      mathScore = stdise(as.numeric(paste0(mathscore)))
+    )], 
+    by = "bcsid", all = TRUE
+  )
+
+dtBcs4Chv <- dtBcs4Chv[complete.cases(dtBcs4Chv)]
+```
+
+### Regional statistics 
+
+I collected regional statistics for the UK from the ONS and nomis websites. 
+
+```{r regional stats}
+
+gdhiRegions <- as.data.table(readxl::read_excel(
+  path = here::here("data-raw/historiceconomicdataforregionsoftheuk19661996.xls"),
+  sheet = "GDHIforImport",
+  col_types = c(
+    "text",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric", "numeric",
+    "numeric", "numeric"
+  )
+))
+
+gdhiRegions[
+  , meanGdhi1985_2005 := rowSums(.SD) / 21, .SDcols = paste0(1985:2005)
+]
+
+setnames(
+  gdhiRegions, 
+  old = c("GDHI", paste0(1985:2005)), 
+  new = c("regionGov", paste0("gdhi", 1985:2005))
+)
+
+unempRegions <- as.data.table(readxl::read_excel(
+  path = here::here("data-raw/unemploymentByRegion1992_2021.xlsx"),
+  sheet = "unemployment rate  working-age "
+))
+
+unempRegions[
+  , meanUnemp1992_2003 := rowSums(.SD) / 21, .SDcols = paste0(1992:2003)
+]
+
+setnames(
+  unempRegions, 
+  old = c("area", paste0(1992:2003)),
+  new = c("regionGov", paste0("unemp", 1992:2003))
+)
+
+levels(dtBcs4Chv$regionGov) <- trimws(levels(dtBcs4Chv$regionGov))
+
+dtBcs4Chv <- merge(
+  dtBcs4Chv,
+  gdhiRegions[, .(regionGov, gdhi1986 = log(gdhi1986), gdhi1996 = log(gdhi1996), 
+                  meanGdhi1985_2005 = log(meanGdhi1985_2005))],
+  by = "regionGov", all.x = TRUE
+) %>% 
+  merge(
+    unempRegions[`Area type` == "gor", .(regionGov, unemp1992, unemp1996, meanUnemp1992_2003)],
+    by = "regionGov", all.x = TRUE
+  )
+
+# change categorical variables to dummies
+dtBcs4Chv[, `:=`(
+  leaveHomeTrue = (leaveHome %like% "Matters"),
+  urban = (urban %in% c("A big city", "A town")),
+  female = (sex == "Female"),
+  exper2 = exper^2,
+  cogScore = readScore + mathScore / 2
+)]
+```
+
+### Logit model 
+
+```{r logit model}
+
+library(margins)
+
+uniDecisionLogit <- glm(
+  degree ~ cogScore + cogScore^2 + 
+    motherEduc + motherEduc^2 + siblings + siblings^2 + # urban + 
+    meanGdhi1985_2005 + meanGdhi1985_2005 + 
+    meanUnemp1992_2003 + meanUnemp1992_2003^2 + female + nonWhite + # X
+    gdhi1986 + gdhi1986:(cogScore + motherEduc + siblings) + 
+    unemp1992 + unemp1992:(cogScore + motherEduc + siblings) + 
+    leaveHome + leaveHome:(cogScore + motherEduc + siblings),  # Z \ X
+  data = dtBcs4Chv,
+  family = binomial()
+)
+
+logit_margins <- margins(uniDecisionLogit)
+
+summary(uniDecisionLogit)
+
+summary(logit_margins)
+```
+
+### Estimating CHV under normality assumptions
+
+- using `endoSwitch`
+
+```{r endoSwitch estimation CHV}
+
+library(endoSwitch)
+
+dtBcs4Chv[, `:=`(
+  experSq = exper^2, cogScoreSq = cogScore^2, motherEducSq = motherEduc^2,
+  siblingsSq = siblings^2, meanGdhi1985_2005Sq = meanGdhi1985_2005^2, 
+  meanUnemp1992_2003Sq = meanUnemp1992_2003^2,
+  gdhi1986_cogScore = gdhi1986 * cogScore, 
+  gdhi1986_motherEduc = gdhi1986 * motherEduc,
+  gdhi1986_siblings = gdhi1986 * siblings,
+  unemp1992_cogScore = unemp1992 * cogScore, 
+  unemp1992_motherEduc = unemp1992 * motherEduc,
+  unemp1992_siblings = unemp1992 * siblings
+)]
+
+dtBcs4Chv[, c(
+  "leaveHomeTrue", "urban", "female", "degree", "siblings", "nonWhite"
+  ) := lapply(.SD, as.numeric),
+          .SDcols = c(
+            "leaveHomeTrue", "urban", "female", "degree", "siblings", 
+            "nonWhite"
+            )]
+
+endoSwitchModel <- endoSwitch(
+  data = dtBcs4Chv,
+  OutcomeDep = "logWage",
+  SelectDep = "degree",
+  OutcomeCov = c(
+    "exper", "experSq", "gdhi1996", "unemp1996", "cogScore", "cogScoreSq",
+    "motherEduc", "motherEducSq", "siblings", "siblingsSq",
+    "meanGdhi1985_2005", "meanGdhi1985_2005Sq", "urban",
+    "meanUnemp1992_2003", "meanUnemp1992_2003Sq", "female", "nonWhite"
+  ),
+  SelectCov = c(
+    "cogScore", "cogScoreSq",
+    "motherEduc", "motherEducSq", "siblings", "siblingsSq",
+    "meanGdhi1985_2005", "meanGdhi1985_2005Sq", "urban",
+    "meanUnemp1992_2003", "meanUnemp1992_2003Sq", "female", "nonWhite",
+    "gdhi1986", "gdhi1986_cogScore", "gdhi1986_motherEduc", "gdhi1986_siblings",
+    "unemp1992", "unemp1992_cogScore", "unemp1992_motherEduc", "unemp1992_siblings",
+    "leaveHomeTrue"
+  )
+)
+
+summary(endoSwitchModel)
+
+```
+
+- using `sampleSelection`
+
+```{r sampleSelection estimation CHV}
+
+library(sampleSelection)
+
+ssModel <- selection(
+  selection = degree ~ cogScore + I(cogScore^2) + motherEduc + I(motherEduc^2) + 
+    siblings + I(siblings^2) + #urban + 
+    meanGdhi1985_2005 + I(meanGdhi1985_2005^2) +
+    meanUnemp1992_2003 + I(meanUnemp1992_2003^2) + female + nonWhite + # X
+    gdhi1986 + gdhi1986:(cogScore + motherEduc + siblings) + 
+    unemp1992 + unemp1992:(cogScore + motherEduc + siblings) + 
+    leaveHome + leaveHome:(cogScore + motherEduc + siblings), # Z \ X
+  outcome = list(
+    logWage ~ exper + I(exper^2) + gdhi1996 + unemp1996 + 
+      cogScore + I(cogScore^2) + motherEduc + I(motherEduc^2) + 
+      siblings + I(siblings^2) +# urban + 
+      meanGdhi1985_2005 + I(meanGdhi1985_2005^2) +
+      meanUnemp1992_2003 + I(meanUnemp1992_2003^2) + female + nonWhite,
+    logWage ~ exper + I(exper^2) + gdhi1996 + unemp1996 + 
+      cogScore + I(cogScore^2) + motherEduc + I(motherEduc^2) + 
+      siblings + I(siblings^2) + # urban + 
+      meanGdhi1985_2005 + I(meanGdhi1985_2005^2) +
+      meanUnemp1992_2003 + I(meanUnemp1992_2003^2) + female + nonWhite
+  ),
+  data = dtBcs4Chv, method = "BHHH"
+)
+
+summary(ssModel)
+
+modelMat <- as.data.table(model.matrix(ssModel$termsO1, data = dtBcs4Chv))
+modelMat1 <- as.data.table(model.matrix(ssModel$termsO1, data = dtBcs4Chv[degree == 1]))
+modelMat0 <- as.data.table(model.matrix(ssModel$termsO1, data = dtBcs4Chv[degree == 0]))
+coefMat <- as.data.table(summary(ssModel)$estimate, keep.rownames = TRUE)
+
+dataMeans <- modelMat[, lapply(.SD, mean)]
+dataMeans0 <- modelMat0[, lapply(.SD, mean)]
+dataMeans1 <- modelMat1[, lapply(.SD, mean)]
+
+coefY0 <- coefMat[30:46, Estimate]
+coefY1 <- coefMat[49:65, Estimate]
+
+beta <- sum(dataMeans[1, ] * (coefY1 - coefY0))
+beta0 <- sum(dataMeans0[1, ] * (coefY1 - coefY0))
+beta1 <- sum(dataMeans1[1, ] * (coefY1 - coefY0))
+```
