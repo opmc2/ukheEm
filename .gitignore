@@ -305,4 +305,7 @@ vignettes/*.pdf
 *.css
 *.js
 
-
+# data and manual
+*.Rd
+*.xls
+*.xlsx
