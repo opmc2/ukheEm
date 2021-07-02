@@ -30,8 +30,8 @@ A data.table of 1,584 rows and 18 variables:
   \item{mainAct25}{CM's main activity at 25 (factor with 14 levels)}
   \item{mainAct25_backcoded}{CM's main activity at 25 (factor with 10
     levels)}
-  \item{y1}{Log of \code{contAnnIncHH_w1} (numeric)}
-  \item{y2}{Log of \code{grssWkPay25} (numeric)}
+  \item{logParInc}{Log of \code{contAnnIncHH_w1} (numeric)}
+  \item{logWkPay}{Log of \code{grssWkPay25} (numeric)}
 }
 }
 \source{
