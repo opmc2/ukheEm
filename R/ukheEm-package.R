@@ -8,5 +8,6 @@
 #' longitudinal surveys.
 #'
 #' @import data.table
+#' @importFrom magrittr %>%
 #' @keywords internal
 "_PACKAGE"

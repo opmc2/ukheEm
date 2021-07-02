@@ -16,7 +16,8 @@ LazyData: true
 Imports: 
     data.table (>= 1.13.0),
     ggplot2,
-    Hmisc
+    Hmisc,
+    magrittr
 RoxygenNote: 7.1.1
 Suggests: 
     knitr,
