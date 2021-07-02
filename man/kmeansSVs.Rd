@@ -4,7 +4,7 @@
 \alias{kmeansSVs}
 \title{K-means Starting Values}
 \usage{
-kmeansSVs(y, K, y1cont = T)
+kmeansSVs(y, K, y1cont = TRUE, J = 1)
 }
 \arguments{
 \item{y}{A vector or matrix.}
@@ -12,6 +12,8 @@ kmeansSVs(y, K, y1cont = T)
 \item{K}{A number (of types / groups).}
 
 \item{y1cont}{A logical indicating the first component of y is continuous.}
+
+\item{J}{An integer with the number of pre-treatment outcomes.}
 }
 \value{
 A list of the starting values and other information.
