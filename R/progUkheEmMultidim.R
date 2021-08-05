@@ -92,6 +92,9 @@ progUkheEm.md <- function(
 
   dt <- merge(dt, startVals$y[, .(id, svType1, svType2, svType)], by = "id")
 
+  alpha <- startVals$alpha
+  sigmaY <- startVals$sigmaY
+
   # make dt long by types
   dtLong <- list()
   for (k1 in 1:K[[1]]) {
@@ -123,7 +126,10 @@ progUkheEm.md <- function(
   dtLong[, pk := fcase(type == as.character(svType), .9,
                        default = .1 / (KK-1))]
 
-  dtLong[, sigma := wtd.sd(w, pk), by = .(type, d)]
+  dtLong[, `:=`(
+    mu = Hmisc::wtd.mean(w, pk),
+    sigma = wtd.sd(w, pk)
+  ), by = .(type, d)]
 
 
   # -------------- #
@@ -154,39 +160,27 @@ progUkheEm.md <- function(
         sigma3 = wtd.sd(y3, pk)
       ), by = type3]
 
-    } else if (J > 1) {
+    } else { # to be completed for multidim version
       alphaSigmaRes <- list()
-      for (k in 1:K) {
+      for (k in 1:K[[1]]) {
         alphaSigmaRes[[k]] <- optim(
-          par = c(alpha[k, 1], sigmaY[k, 1]),
+          par = c(alpha[[1]][[k]], sigmaY[[1]][[k]]),
           fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
         )
-        alpha[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
-        sigmaY[k, 1] <- alphaSigmaRes[[k]]$par[[2]]
-        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[k, 1], sigmaY[k, 1])]
-
-        dtLong[, paste0("alpha", 2:J) := lapply(
-          .SD, Hmisc::wtd.mean, weights = pk
-        ), by = .(type), .SDcols = paste0("y", 2:J)]
-
-        dtLong[, paste0("sigmaY", 2:J) := lapply(
-          .SD, wtd.sd, weights = pk
-        ), by = .(type), .SDcols = paste0("y", 2:J)]
-
+        alpha[[1]][[k]] <- alphaSigmaRes[[k]]$par[[1]]
+        sigmaY[[1]][[k]] <- alphaSigmaRes[[k]]$par[[2]]
+        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[[1]][[k]], sigmaY[[1]][[k]])]
       }
-    } else {
 
-      alphaSigmaRes <- list()
-      for (k in 1:K) {
-        alphaSigmaRes[[k]] <- optim(
-          par = c(alpha[k, 1], sigmaY[k, 1]),
-          fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
-        )
-        alpha[k, 1] <- alphaSigmaRes[[k]]$par[[1]]
-        sigmaY[k, 1] <- alphaSigmaRes[[k]]$par[[2]]
-        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[k, 1], sigmaY[k, 1])]
+      if (J > 1) dtLong[, `:=` (
+        alpha2 = Hmisc::wtd.mean(y2, pk),
+        sigma2 = wtd.sd(y2, pk)
+      ), by = type2]
 
-      }
+      if (J > 2) dtLong[, `:=` (
+        alpha3 = Hmisc::wtd.mean(y3, pk),
+        sigma3 = wtd.sd(y3, pk)
+      ), by = type3]
     }
 
 
