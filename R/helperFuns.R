@@ -129,16 +129,24 @@ kmeansSVs_md <- function(y, K, y1cont = TRUE, J = length(K)) {
     print("J > 3")
   }
 
+  sigmaY <- list()
   y[, c("alpha1", "sigmaY1") := .(mean(y1), sd(y1)), by = svType1]
-  if (J > 1) y[, c("alpha2", "sigmaY2") := .(mean(y2), sd(y2)), by = svType2]
-  if (J > 2) y[, c("alpha3", "sigmaY3") := .(mean(y3), sd(y3)), by = svType3]
+  sigmaY[[1]] <- as.matrix(y[, unique(sigmaY1), by = svType1][order(svType1)])
+  if (J > 1) {
+    y[, c("alpha2", "sigmaY2") := .(mean(y2), sd(y2)), by = svType2]
+    sigmaY[[2]] <- as.matrix(y[, unique(sigmaY2), by = svType2][order(svType2)])
+  }
+  if (J > 2) {
+    y[, c("alpha3", "sigmaY3") := .(mean(y3), sd(y3)), by = svType3]
+    sigmaY[[3]] <- as.matrix(y[, unique(sigmaY3), by = svType3][order(svType3)])
+  }
 
   y[, c("mu", "sigmaW") := .(mean(w), sd(w)), by = svType]
   NN <- y[, .N]
   y[, P_k := .N / NN, by = svType]
 
   return(list(
-    y = y, res = res, alpha = alpha
+    y = y, res = res, alpha = alpha, sigmaY = sigmaY
   ))
 
 }
