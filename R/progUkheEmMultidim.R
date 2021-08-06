@@ -60,7 +60,7 @@
 #'   \item{\code{dtLong}}{The final data.table where calculations took place
 #'     including the final parameters and intermediate values.}
 #' }
-progUkheEm.md <- function(
+progUkheEm_md <- function(
   dt, K, varList,
   startVals = "kmeans",
   maxiter = 400,
