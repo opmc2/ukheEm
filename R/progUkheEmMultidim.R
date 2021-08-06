@@ -317,7 +317,7 @@ progUkheEm_md <- function(
     # update pk
     dtLong[, pk := likelihoodK / likelihood]
     if (anyNA(dtLong$pk)) {
-      dtLong[is.na(pk), pk := .Machine$double.eps]
+      dtLong[is.na(pk) | pk < .Machine$double.eps, pk := .Machine$double.eps]
       print("Some pk were NaN. Replaced by zero.")
     }
 
