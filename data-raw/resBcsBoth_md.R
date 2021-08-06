@@ -16,7 +16,7 @@ devtools::load_all()
 resBcsBoth_md <- list()
 i <- 1
 for (K1 in 2:4) {
-  for (K2 in 2:4) {
+  for (K2 in 2:6) {
     resBcsBoth_md[[i]] <- progUkheEm_md(
       dt = dtBcs4Em,
       K = c(K1, K2),

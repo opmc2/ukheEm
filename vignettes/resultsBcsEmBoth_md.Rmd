@@ -30,8 +30,8 @@ devtools::load_all()
 saveFig <- function(x, ...) ggsave(here(figDir, x), width = 10, height = 6)
 
 resBcs <- resBcsBoth_md
-maxK1 <- 4 
-maxK2 <- 4
+maxK1 <- 4
+maxK2 <- 6
 
 # directories
 figDir <- "vignettes/fig/BcsBoth_md"
