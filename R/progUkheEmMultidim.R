@@ -187,15 +187,14 @@ progUkheEm_md <- function(
     # update theta_j and sigma (parameters of the wage dist. @25)
 
     modelW <- lm(
-      w ~ (type1 + type2):d - 1,
+      w ~ type:d - 1,
       data = dtLong,
-      weights = pk / sigma
+      weights = pk / sigmaW
     )
 
-    dtLong[, `:=` (
-      theta1 = modelW$coefficients[paste0("type1", type1, ":", "d", d)],
-      theta2 = modelW$coefficients[paste0("type2", type2, ":", "d", d)]
-    )]
+    dtLong[, mu := ifelse(
+      is.na(modelW$coefficients[paste0("type", type, ":", "d", d)]),
+      mu, modelW$coefficients[paste0("type", type, ":", "d", d)])]
 
     dtLong[, sigma_test := wtd.sd(w - theta1 - theta2, pk), by = .(type, d)]
 
