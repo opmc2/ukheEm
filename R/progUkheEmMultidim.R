@@ -128,7 +128,7 @@ progUkheEm_md <- function(
 
   dtLong[, `:=`(
     mu = Hmisc::wtd.mean(w, pk),
-    sigma = wtd.sd(w, pk)
+    sigmaW = wtd.sd(w, pk)
   ), by = .(type, d)]
 
 
@@ -160,7 +160,7 @@ progUkheEm_md <- function(
         sigma3 = wtd.sd(y3, pk)
       ), by = type3]
 
-    } else { # to be completed for multidim version
+    } else {
       alphaSigmaRes <- list()
       for (k in 1:K[[1]]) {
         alphaSigmaRes[[k]] <- optim(
@@ -169,23 +169,23 @@ progUkheEm_md <- function(
         )
         alpha[[1]][[k]] <- alphaSigmaRes[[k]]$par[[1]]
         sigmaY[[1]][[k]] <- alphaSigmaRes[[k]]$par[[2]]
-        dtLong[type == k, c("alpha1", "sigmaY1") := .(alpha[[1]][[k]], sigmaY[[1]][[k]])]
+        dtLong[type1 == k, c("alpha1", "sigmaY1") := .(alpha[[1]][[k]], sigmaY[[1]][[k]])]
       }
 
       if (J > 1) dtLong[, `:=` (
         alpha2 = Hmisc::wtd.mean(y2, pk),
-        sigma2 = wtd.sd(y2, pk)
+        sigmaY2 = wtd.sd(y2, pk)
       ), by = type2]
 
       if (J > 2) dtLong[, `:=` (
         alpha3 = Hmisc::wtd.mean(y3, pk),
-        sigma3 = wtd.sd(y3, pk)
+        sigmaY3 = wtd.sd(y3, pk)
       ), by = type3]
     }
 
 
-    # update theta_j and sigma (parameters of the wage dist. @25)
-
+    # update mu and sigmaW (parameters of the wage dist. @25)
+    # can only update as "fully interacted model" i.e. mu for each type
     modelW <- lm(
       w ~ type:d - 1,
       data = dtLong,
@@ -196,7 +196,9 @@ progUkheEm_md <- function(
       is.na(modelW$coefficients[paste0("type", type, ":", "d", d)]),
       mu, modelW$coefficients[paste0("type", type, ":", "d", d)])]
 
-    dtLong[, sigma_test := wtd.sd(w - theta1 - theta2, pk), by = .(type, d)]
+    dtLong[, sigmaW := ifelse(is.na(wtd.sd(w - mu, pk)),
+                              sigmaW,
+                              wtd.sd(w - mu, pk)), by = .(type, d)]
 
     # pi(k,z,d)
 
@@ -302,8 +304,8 @@ progUkheEm_md <- function(
       ), by = .(type, d, z)]
     }
 
-    listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
-    listLoglike[[iter]] <- dtLong[type == "1", sum(log(likelihood))]
+    listLike[[iter]] <- dtLong[type == "11", prod(likelihood)]
+    listLoglike[[iter]] <- dtLong[type == "11", sum(log(likelihood))]
 
     if (iter > 1) {
       delta <- listLoglike[[iter]] - listLoglike[[iter-1]]
