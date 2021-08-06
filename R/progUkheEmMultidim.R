@@ -147,17 +147,17 @@ progUkheEm_md <- function(
     if (isTRUE(y1cont)) {
       dtLong[, `:=` (
         alpha1 = Hmisc::wtd.mean(y1, pk),
-        sigma1 = wtd.sd(y1, pk)
+        sigmaY1 = wtd.sd(y1, pk)
       ), by = type1]
 
       if (J > 1) dtLong[, `:=` (
         alpha2 = Hmisc::wtd.mean(y2, pk),
-        sigma2 = wtd.sd(y2, pk)
+        sigmaY2 = wtd.sd(y2, pk)
       ), by = type2]
 
       if (J > 2) dtLong[, `:=` (
         alpha3 = Hmisc::wtd.mean(y3, pk),
-        sigma3 = wtd.sd(y3, pk)
+        sigmaY3 = wtd.sd(y3, pk)
       ), by = type3]
 
     } else {
