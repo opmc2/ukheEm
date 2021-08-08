@@ -70,14 +70,31 @@
 #'     at 16 (factor with 4 levels)}
 #'   \item{sex}{CM's gender (factor with 2 levels)}
 #'   \item{likeY11}{Whether CM enjoyed Year 11 (factor with 4 levels)}
+#'   \item{leaveHomeGd}{If they mentioned leaving home as a good thing}
+#'   \item{leaveHomeBad}{If they mentioned leaving home as a bad thing}
 #'   \item{mainAct16}{CM's main activity at 16 (factor with 5 levels)}
 #'   \item{grssWkPay25}{CM's gross weekly pay at 25, in GBP (numeric)}
 #'   \item{degree25}{Whether CM holds an UG degree at 25 (factor with 2 levels)}
 #'   \item{mainAct25}{CM's main activity at 25 (factor with 14 levels)}
 #'   \item{mainAct25_backcoded}{CM's main activity at 25 (factor with 10
 #'     levels)}
+#'   \item{locScore(_std)}{Locus of control score (standardised)}
+#'   \item{att2schlScr(_std)}{Attitude to school score (standardised)}
+#'   \item{ghqScr(_std)}{Score in the 12-question General Health Questionnaire
+#'     (standardised)}
+#'   \item{noncogScore}{Overall noncognitive score, as the sum of standardised
+#'     loc, att2schl and ghq scores}
+#'   \item{gdMath_num}{Self-reported ability in maths (numeric)}
+#'   \item{gdSci_num}{Self-reported ability in science (numeric)}
+#'   \item{gdIct_num}{Self-reported ability in ICT (numeric)}
+#'   \item{gdEngl_num}{Self-reported ability in english (numeric)}
+#'   \item{gdMarksW1_num}{Self-reported grades in general (numeric) wave 1}
+#'   \item{gdMarksW2_num}{Self-reported grades in general (numeric) wave 2}
+#'   \item{gdMarksW3_num}{Self-reported grades in general (numeric) wave 3}
+#'   \item{cogScore}{Standardised sum of all self-reported ability (gd...)}
 #'   \item{logParInc}{Log of \code{contAnnIncHH_w1} (numeric)}
 #'   \item{logWkPay}{Log of \code{grssWkPay25} (numeric)}
+#'   \item{leaveHome}{Whether they think leaving home is good, bad or neutral}
 #' }
 #' @source See \code{lsype1YP} and \code{lsype1FB}.
 "dtLsype4Em"
