@@ -165,7 +165,7 @@ progUkheEm_md <- function(
       for (k in 1:K[[1]]) {
         alphaSigmaRes[[k]] <- optim(
           par = c(alpha[[1]][[k]], sigmaY[[1]][[k]]),
-          fn = function(theta) -ell(theta, x = dtLong[type == as.character(k)])
+          fn = function(theta) -ell(theta, x = dtLong[type1 == as.character(k)])
         )
         alpha[[1]][[k]] <- alphaSigmaRes[[k]]$par[[1]]
         sigmaY[[1]][[k]] <- alphaSigmaRes[[k]]$par[[2]]
