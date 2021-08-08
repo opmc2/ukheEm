@@ -171,8 +171,8 @@ ell <- function(theta, x) {
   sum(
     x[, pk] * log(pnorm(x[, right], mean = theta[[1]],
                         sd = theta[[2]]) -
-                    pnorm(x[, left], mean = theta[[1]],
-                          sd = theta[[2]])))
+                  pnorm(x[, left], mean = theta[[1]],
+                        sd = theta[[2]])))
 }
 
 #' Initial values for parameters of Gaussian distribution
