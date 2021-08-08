@@ -41,8 +41,79 @@ dtNonCog[, paste0(c("locScore", "att2schlScr", "ghqScr"), "_std") := lapply(.SD,
          .SDcols = c("locScore", "att2schlScr", "ghqScr")]
 dtNonCog[, noncogScore := (stdise(locScore) + stdise(att2schlScr) - stdise(ghqScr)) / 3]
 
+# cognitive measure
+# while waiting to get hold of the NPD I will use as measures of cognitive ability:
+# - self-reported "good marks" [W1-3YYS12YP]
+# - whether they are "good" at maths, english, science and ICT [W1g<subj>YP]
+dtCog <- lsype1YP[[1]][, .(
+  NSID,
+  gdMath = W1gmathYP,
+  gdMath_num = fcase(
+    W1gmathYP == "No good at all", 0,
+    W1gmathYP == "Not very good", 1,
+    W1gmathYP == "Fairly good", 2,
+    W1gmathYP == "Very good", 3
+  ),
+  gdEngl = W1gengYP,
+  gdEngl_num = fcase(
+    W1gengYP == "No good at all", 0,
+    W1gengYP == "Not very good", 1,
+    W1gengYP == "Fairly good", 2,
+    W1gengYP == "Very good", 3
+  ),
+  gdSci = W1gsciYP,
+  gdSci_num = fcase(
+    W1gsciYP == "No good at all", 0,
+    W1gsciYP == "Not very good", 1,
+    W1gsciYP == "Fairly good", 2,
+    W1gsciYP == "Very good", 3
+  ),
+  gdIct = W1gictYP,
+  gdIct_num = fcase(
+    W1gictYP == "No good at all", 0,
+    W1gictYP == "Not very good", 1,
+    W1gictYP == "Fairly good", 2,
+    W1gictYP == "Very good", 3
+  ),
+  gdMarksW1 = W1yys12YP,
+  gdMarksW1_num = fcase(
+    W1yys12YP == "Strongly disagree", 0,
+    W1yys12YP == "Disagree", 1,
+    W1yys12YP == "Agree", 2,
+    W1yys12YP == "Strongly agree", 3
+  )
+)] %>%
+  merge(
+    lsype1YP[[2]][, .(
+      NSID,
+      gdMarksW2 = W2YYS12YP,
+      gdMarksW2_num = fcase(
+        W2YYS12YP == "Strongly disagree", 0,
+        W2YYS12YP == "Disagree", 1,
+        W2YYS12YP == "Agree", 2,
+        W2YYS12YP == "Strongly agree", 3
+      )
+    )]
+  ) %>%
+  merge(
+    lsype1YP[[3]][, .(
+      NSID,
+      gdMarksW3 = W3yys12YP,
+      gdMarksW3_num = fcase(
+        W3yys12YP == "Strongly disagree", 0,
+        W3yys12YP == "Disagree", 1,
+        W3yys12YP == "Agree", 2,
+        W3yys12YP == "Strongly agree", 3
+      )
+    )]
+  )
+
+dtCog[, cogScore := stdise(rowSums(.SD)),
+      .SDcols = c("gdMath_num", "gdEngl_num", "gdSci_num", "gdIct_num",
+                  "gdMarksW1_num", "gdMarksW2_num", "gdMarksW3_num")]
+
 # select variables and merge waves FB1&4 and YP1&4
-dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
+dtLsype <- lsype1FB[[1]][, .(
   NSID,
   annualIncomeMP_w1 = W1inc1estMP,
   annualIncomeMP_topBand_w1 = W1inc2estMP,
@@ -74,14 +145,26 @@ dtLsypeWv4Wv8 <- lsype1FB[[1]][, .(
     )],
     by = c("NSID"), all = TRUE
   ) %>%
-  merge(dtNonCog[, .(NSID,
-                     locScore, att2schlScr, ghqScr,
-                     locScore_std, att2schlScr_std, ghqScr_std,
-                     noncogScore)],
-        by = "NSID")
+  merge(
+    dtNonCog[, .(
+      NSID,
+      locScore, att2schlScr, ghqScr,
+      locScore_std, att2schlScr_std, ghqScr_std,
+      noncogScore
+    )],
+    by = "NSID"
+  ) %>%
+  merge(
+    dtCog[, .(
+      NSID,
+      gdMath_num, gdSci_num, gdIct_num, gdEngl_num,
+      gdMarksW1_num, gdMarksW2_num, gdMarksW3_num,
+      cogScore
+    )]
+  )
 
 # drops observations with missing data
-dtLsypeNoMissing <- dtLsypeWv4Wv8[
+dtLsypeNoMissing <- dtLsype[
   !is.na(degree25) & !is.na(grssWkPay25) & !is.na(contAnnIncHH_w1)
 ]
 
