@@ -31,13 +31,14 @@ devtools::load_all()
 saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = width, height = height)
 
 # directories
-figDir <- "vignettes/fig/LsypeParIncNoncog_md"
+figDir <- "vignettes/fig/LsypeParIncCog_md"
 dir.create(here(figDir))
 
-resLsype <- resLsypeParIncNoncog_md
+resLsype <- resLsypeParIncCog_md
 
 maxK1 <- 6
 maxK2 <- 6
+maxK <- 24
 ```
 
 This vignette analyses the results of running `progUkheEm()` on the Next Steps data. The algorithm is presented in detail in @cassagneau-francis_role_2021, and builds on the work in @cassagneau-francis_nonparametric_2020.
@@ -50,6 +51,7 @@ for (K1 in 2:maxK1) {
   for (K2 in 2:maxK2) {
     bigDt[[i]] <- resLsype[[i]][[3]]
     bigDt[[i]][, c("nTypes1", "nTypes2", "nTypes") := .(K1, K2, paste0(K1, K2))]
+    if (i == maxK) break
     i <- i+1
   }
 }
@@ -81,6 +83,7 @@ for (K1 in 2:maxK1) {
       iter = 1:length(resLsype[[i]]$listLoglike),
       logLikelihood = unlist(resLsype[[i]]$listLoglike)
     )
+    if (i == maxK) break
     i <- i+1
   }
 }
@@ -198,7 +201,7 @@ dtPk <- bigDt[, .(
   alpha1 = Hmisc::wtd.mean(y1, pk),
   alpha2 = Hmisc::wtd.mean(y2, pk),
   muCons = Hmisc::wtd.mean(w, pk)
-), by = .(nTypes, type)]
+), by = .(nTypes, nTypes1, nTypes2, type)]
 
 dtPk[, alpha1Norm := (alpha1 - mean(alpha1, na.rm = TRUE)) / sd(alpha1, na.rm = TRUE)]
 dtPk[, alpha2Norm := (alpha2 - mean(alpha2, na.rm = TRUE)) / sd(alpha2, na.rm = TRUE)]
@@ -215,8 +218,8 @@ ggplot(
 ) +
   geom_col(aes(y = P_k / 2)) +
   geom_point(aes(y = (value + 4)/6, colour = variable)) +
-  facet_wrap(vars(nTypes), 
-             labeller = as_labeller(function(x) paste0("K = ", x))) +
+  facet_grid(row = vars(nTypes1), cols = vars(nTypes2), 
+             labeller = label_both) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(
     name = "Pr(k)",
@@ -240,10 +243,10 @@ dtWagePrem <- bigDt[, .(
   alpha1d = Hmisc::wtd.mean(y1, pk),
   alpha2d = Hmisc::wtd.mean(y2, pk),
   mu = Hmisc::wtd.mean(w, pk)
-), by = .(nTypes, type, d)]
+), by = .(nTypes, nTypes1, nTypes2, type, d)]
 
 dtWagePrem <- dcast(dtWagePrem, 
-                    formula = nTypes + type ~ d, 
+                    formula = nTypes + nTypes1 + nTypes2 + type ~ d, 
                     value.var = c("alpha1d", "alpha2d", "mu"))
 
 setnames(dtWagePrem, 
@@ -275,7 +278,7 @@ ggplot(data = dtWagePrem,
   geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
   geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
   geom_col(aes(y = noncogPrem, fill = "Noncognitive", colour = "Noncognitive")) +
-  facet_wrap(vars(nTypes), nrow = 2, scales = "free") +
+  facet_grid(rows = vars(nTypes1), cols = vars(nTypes2), scales = "free") +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
   scale_fill_manual(name = "Premia",

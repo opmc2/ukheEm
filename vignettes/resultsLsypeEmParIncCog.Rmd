@@ -28,16 +28,18 @@ library(magrittr)
 devtools::load_all()
 
 # functions
+signiff <- function(x, ...) if (is.numeric(x)) signif(x, digits = 3)
 saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = width, height = height)
 
+options(scipen = 15)
+
 # directories
-figDir <- "vignettes/fig/LsypeParIncNoncog_md"
+figDir <- "vignettes/fig/LsypeParIncCog"
 dir.create(here(figDir))
 
-resLsype <- resLsypeParIncNoncog_md
+resLsype <- resLsypeParIncCog
 
-maxK1 <- 6
-maxK2 <- 6
+maxK <- length(resLsype)
 ```
 
 This vignette analyses the results of running `progUkheEm()` on the Next Steps data. The algorithm is presented in detail in @cassagneau-francis_role_2021, and builds on the work in @cassagneau-francis_nonparametric_2020.
@@ -45,27 +47,22 @@ This vignette analyses the results of running `progUkheEm()` on the Next Steps d
 ```{r combine results in big dt}
 
 bigDt <- list()
-i <- 1
-for (K1 in 2:maxK1) {
-  for (K2 in 2:maxK2) {
-    bigDt[[i]] <- resLsype[[i]][[3]]
-    bigDt[[i]][, c("nTypes1", "nTypes2", "nTypes") := .(K1, K2, paste0(K1, K2))]
-    i <- i+1
-  }
+for (K in 2:maxK) {
+  bigDt[[K-1]] <- resLsype[[K]][[3]]
+  bigDt[[K-1]][, nTypes := K]
 }
 
 bigDt <- rbindlist(bigDt)
 
 # reorder types by mu
-bigDt[, paste0("oldType", c("", 1, 2)) := .(type, type1, type2)]
-bigDt[, nTypes := paste0(nTypes1, nTypes2)]
-bigDt[, type1 := frank(alpha1, ties.method = "dense"), by = .(nTypes)]
-bigDt[, type2 := frank(alpha2, ties.method = "dense"), by = .(nTypes)]
-bigDt[, type := factor(paste0(type1, type2))]
+bigDt[, oldType := type]
+# bigDt[, mu := Hmisc::wtd.mean(y1, pk), by = .(nTypes, type)]
+bigDt[, type := frank(alpha1, ties.method = "dense"), by = .(nTypes)]
+bigDt[, type := factor(type, levels = 1:maxK)]
 setorder(bigDt, nTypes, type, id)
 
 # save number of individuals
-NN <- bigDt[nTypes == "22" & type == "11", .N]
+NN <- bigDt[nTypes == 2 & type == 1, .N]
 ```
 
 # Choosing the number of types (K)
@@ -73,21 +70,16 @@ NN <- bigDt[nTypes == "22" & type == "11", .N]
 ```{r dtLikeConverge}
 
 dtLikeConverge <- list()
-i <- 1
-for (K1 in 2:maxK1) {
-  for (K2 in 2:maxK2) {
-    dtLikeConverge[[i]] <- data.table(
-      nTypes1 = K1, nTypes2 = K2,
-      iter = 1:length(resLsype[[i]]$listLoglike),
-      logLikelihood = unlist(resLsype[[i]]$listLoglike)
-    )
-    i <- i+1
-  }
+for (K in 2:maxK) {
+  dtLikeConverge[[K-1]] <- data.table(
+    nTypes = K,
+    iter = 1:length(resLsype[[K]]$listLoglike),
+    logLikelihood = unlist(resLsype[[K]]$listLoglike)
+  )
 }
 
 dtLikeConverge <- rbindlist(dtLikeConverge)
-dtLikeConverge[, maxIter := max(iter), by = .(nTypes1, nTypes2)]
-dtLikeConverge[, nTypes := paste0(nTypes1, nTypes2)]
+dtLikeConverge[, maxIter := max(iter), by = nTypes]
 
 ```
 
@@ -102,7 +94,7 @@ ggplot(data = dtLikeConverge,
             mapping = aes(x = iter, 
                           y = logLikelihood, label = paste0("K = ", nTypes)),
             nudge_x = 50, segment.alpha = .6) +
-  facet_grid(rows = vars(nTypes1), cols = vars(nTypes2)) +
+  # facet_wrap(vars(nTypes)) +
   scale_x_continuous(name = "Iteration") +
   scale_y_continuous(name = "Log-likelihood") +
   theme_classic() + theme(text = element_text(size = 15)) +
@@ -130,16 +122,15 @@ meaning $j = \#\Theta_K = (2 + 2 \times 2 + 4) \times K = 10K$
 
 ```{r likelihood criteria}
 
-dtLikelihood <- dtLikeConverge[iter == maxIter, 
-                               .(nTypes, nTypes1, nTypes2, iter, logLikelihood)]
+dtLikelihood <- dtLikeConverge[iter == maxIter, .(nTypes, iter, logLikelihood)]
 dtLikelihood[, `:=` (
-  AIC = logLikelihood - 12 * nTypes1 * nTypes2,
-  BIC = logLikelihood - 12 * nTypes1 * nTypes2 / 2 * log(NN)
+  AIC = logLikelihood - 10 * nTypes,
+  BIC = logLikelihood - 10 * nTypes / 2 * log(NN)
 )]
 
 dtLikelihood <- melt(
   dtLikelihood,
-  id.vars = c("nTypes", paste0("nTypes", 1:2), "iter"),
+  id.vars = c("nTypes", "iter"),
   variable.name = "criteria"
 )
 
@@ -147,12 +138,12 @@ dtLikelihood[iter == 399, maxIter := TRUE]
 
 ggplot(
   data = dtLikelihood,
-  mapping = aes(x = nTypes, y = value, colour = criteria, group = criteria)
+  mapping = aes(x = nTypes, y = value, colour = criteria)
 ) +
   geom_line() +
   geom_point(aes(shape = maxIter), size = 1.5) +
   facet_wrap(vars(criteria), nrow = 2, scale = "free") +
-  scale_x_discrete(name = "Number of types (K1, K2)") +
+  scale_x_continuous(name = "Number of types (G)", breaks = seq(2, maxK, by = 2)) +
   scale_y_continuous(name = NULL) +
   scale_shape_manual(
     name = NULL, labels = "Reached max. \niterations (400)",
@@ -170,20 +161,43 @@ saveFig("likelihoodCriteria.png")
 ```{r pk plot}
 
 ggplot(
-  data = bigDt, 
+  data = bigDt[nTypes %between% c(2, 7), ], 
   mapping = aes(x = pk, fill = type)
 ) +
   geom_histogram() +
-  facet_grid(rows = vars(nTypes1), cols = vars(nTypes2), 
-             scale = "free", labeller = label_both) +
+  facet_wrap(vars(nTypes), scale = "free") +
   scale_y_continuous(name = NULL) +
-  # scale_x_continuous(limits = c(.05, 1)) +
   theme_classic() +
   theme(text = element_text(size = 15)) +
-  guides(fill = "none") +
-  coord_cartesian(ylim = c(0, 500))
+  guides(fill = "none")
 
-saveFig("pkPlot.png")
+saveFig("pkPlotK2_K7.png")
+
+ggplot(
+  data = bigDt[nTypes %between% c(8, 13), ], 
+  mapping = aes(x = pk, fill = type)
+) +
+  geom_histogram() +
+  facet_wrap(vars(nTypes), scale = "free") +
+  scale_y_continuous(name = NULL) +
+  theme_classic() +
+  theme(text = element_text(size = 15)) +
+  guides(fill = "none")
+
+saveFig("pkPlotK8_K13.png")
+
+# ggplot(
+#   data = bigDt[nTypes %between% c(14, 18), ], 
+#   mapping = aes(x = pk, fill = type)
+# ) +
+#   geom_histogram() +
+#   facet_wrap(vars(nTypes), scale = "free") +
+#   scale_y_continuous(name = NULL) +
+#   theme_classic() +
+#   theme(text = element_text(size = 15)) +
+#   guides(fill = "none")
+# 
+# saveFig("pkPlotK14_K18.png")
 
 ```
 
@@ -210,7 +224,7 @@ dtPk <- melt(
 )
 
 ggplot(
-  data = dtPk,
+  data = dtPk[nTypes %between% c(2, 7)],
   mapping = aes(x = type)
 ) +
   geom_col(aes(y = P_k / 2)) +
@@ -228,7 +242,51 @@ ggplot(
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
-saveFig("groupSizesMeans.png")
+saveFig("groupSizesMeansK2_K7.png")
+
+
+ggplot(
+  data = dtPk[nTypes %between% c(8, 13)],
+  mapping = aes(x = type)
+) +
+  geom_col(aes(y = P_k / 2)) +
+  geom_point(aes(y = (value + 4)/6, colour = variable)) +
+  facet_wrap(vars(nTypes), 
+             labeller = as_labeller(function(x) paste0("K = ", x))) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(
+    name = "Pr(k)",
+    sec.axis = sec_axis(trans = ~. * 5 - 4)
+  ) +
+  scale_color_discrete(name = NULL, 
+                       limits = c("alpha1Norm", "alpha2Norm", "muConsNorm"),
+                       labels = c("Parental Inc. @16", "Noncog", "Wage @25")) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("groupSizesMeansK8_K13.png")
+
+
+# ggplot(
+#   data = dtPk[nTypes %between% c(14, 18)],
+#   mapping = aes(x = type)
+# ) +
+#   geom_col(aes(y = P_k / 2)) +
+#   geom_point(aes(y = (value + 4)/6, colour = variable)) +
+#   facet_wrap(vars(nTypes), 
+#              labeller = as_labeller(function(x) paste0("K = ", x))) +
+#   scale_x_discrete(name = "Type (k)") +
+#   scale_y_continuous(
+#     name = "Pr(k)",
+#     sec.axis = sec_axis(trans = ~. * 5 - 4)
+#   ) +
+#   scale_color_discrete(name = NULL, 
+#                        limits = c("muNorm", "alphaConsNorm"),
+#                        labels = c("Parental Inc. @16", "Wage @25")) +
+#   theme_classic() +
+#   theme(legend.position = "bottom", text = element_text(size = 15))
+# 
+# saveFig("groupSizesMeansK14_K18.png")
 
 ```
 
@@ -270,12 +328,12 @@ dtWagePrem <- merge(dtWagePrem,
 # dtWagePrem <- melt(dtWagePrem, 
 #                    measure.vars = c("testPrem", "wagePrem"))
 
-ggplot(data = dtWagePrem,
+ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
        mapping = aes(x = type, alpha = P_k)) +
   geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
   geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
   geom_col(aes(y = noncogPrem, fill = "Noncognitive", colour = "Noncognitive")) +
-  facet_wrap(vars(nTypes), nrow = 2, scales = "free") +
+  facet_wrap(vars(nTypes), nrow = 2, scale = "free") +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
   scale_fill_manual(name = "Premia",
@@ -288,7 +346,33 @@ ggplot(data = dtWagePrem,
   theme_classic() +
   theme(text = element_text(size = 15))
 
-saveFig("wagePrem.png")
+saveFig("wagePremK2_K7.png")
+
+ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  geom_col(aes(y = noncogPrem, fill = "Noncognitive", colour = "Noncognitive")) +
+  facet_wrap(vars(nTypes), nrow = 2, scale = "free") +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA, NA),
+                    limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue", "green"),
+                      limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK8_K13.png")
+
+# ggplot(data = dtWagePrem[nTypes %between% c(14, 18)],
+#        mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
+#   geom_col(position = "dodge") +
+#   facet_wrap(vars(nTypes)) +
+#   theme_classic()
 
 ```
 ## Unconditional graduate wage premium
@@ -316,7 +400,7 @@ ggplot(data = dtWPuncond,
        mapping = aes(x = nTypes)) +
   geom_col(aes(y = WPu, fill = "ATE", colour = "ATE")) +
   geom_col(aes(y = WPu_dT, fill = "ATT", colour = "ATT")) +
-  scale_x_discrete(name = "Number of types (K)") +
+  scale_x_continuous(name = "Number of types (K)") +
   scale_y_continuous(name = "", limits = c(0, .25)) +
   scale_fill_manual(name = "",
                     values = c("red", NA),

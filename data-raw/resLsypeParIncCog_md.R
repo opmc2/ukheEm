@@ -13,17 +13,17 @@
 load_all()
 
 # call progUkheEm() on BCS data using parental income as y1
-resLsypeParIncNoncog_md <- list()
+resLsypeParIncCog_md <- list()
 i <- 1
 for (K1 in 2:6) {
   for (K2 in 2:6) {
-    resLsypeParIncNoncog_md[[i]] <- progUkheEm_md(
+    resLsypeParIncCog_md[[i]] <- progUkheEm_md(
       dt = dtLsype4Em,
       K = c(K1, K2),
       varList = c(
         id = "NSID",
         y1 = "logParInc",
-        y2 = "noncogScore", # combined noncognitive test score
+        y2 = "cogScore", # combined cognitive score (self-reported measures)
         w = "logWkPay",
         z = "leaveHome", # adult life benefits: live away from home
         d = "degree25"
@@ -32,8 +32,9 @@ for (K1 in 2:6) {
       y1cont = TRUE,
       y1log = TRUE
     )
+    print(paste0("K1 = ", K1, ", K2 = ", K2, " completed."))
     i <- i+1
   }
 }
 
-use_data(resLsypeParIncNoncog_md, overwrite = TRUE)
+use_data(resLsypeParIncCog_md, overwrite = TRUE)
