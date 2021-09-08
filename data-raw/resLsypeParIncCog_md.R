@@ -12,7 +12,7 @@
 # library(ukheEm)
 load_all()
 
-# call progUkheEm() on BCS data using parental income as y1
+# call progUkheEm() on Next Steps data using parental income as y1
 resLsypeParIncCog_md <- list()
 i <- 1
 for (K1 in 2:6) {
