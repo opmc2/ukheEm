@@ -148,6 +148,13 @@ dtLikelihood <- melt(
 
 dtLikelihood[iter == 399, maxIter := TRUE]
 
+nTypesLevels <- dtLikelihood[, unique(nTypes)]
+nTypesLevels <- nTypesLevels[
+  order(as.numeric(substr(nTypesLevels, 1, 1)) + as.numeric(substr(nTypesLevels, 2, 2)))
+]
+
+dtLikelihood[, nTypes := factor(nTypes, nTypesLevels)]
+
 ggplot(
   data = dtLikelihood,
   mapping = aes(x = nTypes, y = value, colour = criteria, group = criteria)

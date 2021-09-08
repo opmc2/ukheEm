@@ -147,6 +147,14 @@ dtLikelihood <- melt(
 
 dtLikelihood[iter == 399, maxIter := TRUE]
 
+nTypesLevels <- dtLikelihood[, unique(nTypes)]
+nTypesLevels <- nTypesLevels[
+  order(as.numeric(substr(nTypesLevels, 1, 1)) + as.numeric(substr(nTypesLevels, 2, 2)))
+]
+
+dtLikelihood[, nTypes := factor(nTypes, nTypesLevels)]
+
+
 ggplot(
   data = dtLikelihood,
   mapping = aes(x = nTypes, y = value, colour = criteria, group = criteria)
@@ -176,7 +184,7 @@ ggplot(
   mapping = aes(x = pk, fill = type)
 ) +
   geom_histogram() +
-  facet_wrap(vars(nTypes), scale = "free") +
+  facet_grid(nTypes1 ~ nTypes2, scale = "free") +
   scale_y_continuous(name = NULL) +
   # scale_x_continuous(limits = c(.05, 1)) +
   theme_classic() +
@@ -216,8 +224,7 @@ ggplot(
 ) +
   geom_col(aes(y = P_k / 2)) +
   geom_point(aes(y = (value + 4)/6, colour = variable)) +
-  facet_wrap(vars(nTypes), 
-             labeller = as_labeller(function(x) paste0("K = ", x))) +
+  facet_grid(rows = vars(nTypes1), cols = vars(nTypes2)) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(
     name = "Pr(k)",
