@@ -22,6 +22,88 @@ library(ggplot2)
 library(magrittr)
 ```
 
+## Summary statistics
+
+```{r observed characteristics}
+
+dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
+  bcsid, sex, degree,
+  yrJobStart = b960270,
+  inCouple = b960319,
+  married = b960322,
+  livingSitn = b960321,
+  nbKids = b960333,
+  age = b960338,
+  health = b960432,
+  soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  noVocQual = no_qual,
+  ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  alevel, slevel, # A-level / S-level passes,
+  hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  lengthUnemp = b960258, 
+  usualHoursWk = b960277, 
+  firmSize = b960272
+)]
+
+dtBcs <- merge(
+  dtBcs4Em, 
+  dtBcsWorkerFirm, 
+  by = "bcsid"
+)
+
+dtBcs <- dtBcs[complete.cases(dtBcs[, .(left, logWkPay, combnScore, c5e7, degree.x)])]
+```
+
+```{r summary stats BCS}
+dtSumStats <- dtBcs[, .(
+  "Par. Inc. @16 (mean)" = mean(exp(left+right)/52),
+  "Par. Inc. (std dev.)" = sd(exp(left+right)/52),
+  "Wage (mean)" = mean(exp(logWkPay)),
+  "Wage (std dev.)" = sd(exp(logWkPay)),
+  "Degree" = mean(degree.x),
+  "Male" = mean(sex %like% "Male"),
+  "In relationship" = mean(inCouple %like% "Yes"),
+  "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
+  "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
+                                             "Living as a couple")),
+  "Has children" = mean(nbKids %in% paste0(1:5)),
+  "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
+  "In good health" = mean(health %in% c("Excellent", "Good")),
+  "Occupation data" = mean(!is.na(hgscale)),
+  "H-G score" = mean(hgscale, na.rm = TRUE),
+  "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  "Ever unemp." = mean(lengthUnemp %in% c(
+    "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+    "More than 2 years"
+  )),
+  "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
+  "10 or less" = mean(firmSize %like% "10 or less"), 
+  "11--25" = mean(firmSize %like% "11 - 25"),
+  "26--99" = mean(firmSize %like% "26 - 99"),
+  "100--499" = mean(firmSize %like% "100 - 499"),
+  "500 or more" = mean(firmSize %like% "500 or more"),
+  "Self-esteem" = mean(selfEsteemScore, na.rm = TRUE),
+  "Loc" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScore, na.rm = TRUE),
+  "Cognitive" = mean(combnScore),
+  .N
+), by = degree.x] %>%
+  # .[, names(.) := lapply(.SD, signif2), 
+  #            .SDcols = names(.)] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE) 
+
+xtable::xtable(dtSumStats, digits = 2)
+
+dtBcs[degree.x == FALSE, .(prop = .N / 1290), by = rgsc91][order(rgsc91)]
+dtBcs[degree.x == TRUE, .(prop = .N / 522), by = rgsc91][order(rgsc91)]
+```
+
 ## Test scores ($y_1$)
 
 ```{r test scores}

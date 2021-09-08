@@ -183,51 +183,86 @@ I select my subsample based on some key questions that were only asked to some o
 These questions relate to the advantages and disadvantages of attending university, and were only asked to students who had at least 5 GCSEs at grade A*-C or passes at intermediate GNVQ (henceforth "high achieving"). 
 This does not seem to be an official "entry standard" to university, and it is not entirely clear to me why this selection was made for this question. 
 
-```{r desc stats lsype1, results='hide'}
 
-wageQs <- dtLsype[inSubSample == T, quantile(wage25, probs = c(0, .99), na.rm = T)]
+```{r observed characteristics}
 
-dtLsype[, .(
-  .N, 
-  Female = mean(female, na.rm = T), 
-  University = mean(degree, na.rm = T),
-  RussellGroup = mean(russellGrp, na.rm = T),
-  Employed25 = mean(employed25, na.rm = T),
-  Wage25 = median(wage25, na.rm = T),
-  Wage25mean = mean(wage25, na.rm = T),
-  sdWage = sd(wage25, na.rm = T)
-), by = degree]
-
-dtLsype[inSubSample == T & wage25 %between% wageQs, .(
-  .N, 
-  Female = mean(female, na.rm = T), 
-  University = mean(everUni, na.rm = T),
-  Degree = mean(degree, na.rm = T),
-  RussellGroup = mean(russellGrp, na.rm = T),
-  Employed25 = mean(employed25, na.rm = T),
-  Wage25med = median(wage25, na.rm = T),
-  Wage25mean = mean(wage25, na.rm = T),
-  sdWage = sd(wage25, na.rm = T)
+lsypeW8 <- as.data.table(lsype1YP[[8]])
+dtLsypeWorkerFirm <- lsypeW8[, .(
+  NSID, sex = W8CMSEX,
+  # yrJobStart = b960270,
+  inCouple = W8PART,
+  married = W8CRNOWMA,
+  cohabit = W8NRANY,
+  kids = W8MORECH,
+  nbKids = W8MCHMANY,
+  health = W8GENA,
+  SOC2010 = W8JOBDOSOCCODE,
+  NSSEC5 = W8DNSSEC5,
+  # soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  # noVocQual = no_qual,
+  # ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  # alevel, slevel, # A-level / S-level passes,
+  # hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  # nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  # ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  # trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  # lengthUnemp = b960258, 
+  usualHoursWk = W8WRKHRS, 
+  firmSize = W8EMP
 )]
 
-dtLsype[inSubSample == T, mean(degree, na.rm = T), by = parInc]
-dtLsype[, mean(degree, na.rm = T), by = parInc]
+dtLsype <- merge(
+  dtLsype4Em,
+  dtLsypeWorkerFirm, 
+  by = "NSID"
+)
 
-# alevels 
-dtLsype[, mean(is.na(numAlev17))]
-dtLsype[inSubSample == T, mean(is.na(numAlev17))]
+```
 
-# number of alevels
-dtLsype[, mean(numAlev17, na.rm = T)]
-dtLsype[inSubSample == T, mean(numAlev17, na.rm = T)]
+```{r sumstats}
 
-# ethnic group
-dtLsype[, .N / 6628, by = ethGrp]
-dtLsype[inSubSample == T, .N / 4640, by = ethGrp]
+dtSumStats <- dtLsype[, .(
+  "Parental Inc. @16 (mean)" = mean(exp(logParInc)) / 52,
+  "Par. Inc. (std dev.)" = sd(exp(logParInc) / 52),
+  "Wage (mean)" = mean(exp(logWkPay)),
+  "Wage (std dev.)" = sd(exp(logWkPay)),
+  "Degree" = mean(degree25 %like% "First or higher degree"),
+  "Male" = mean(sex.y %like% "Male"),
+  "In relationship" = mean(inCouple %like% "Yes"),
+  "Married" = mean(married %in% c("Spouse")),
+  # "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  "Live w/ partner" = mean(cohabit %like% "Yes"),
+  "Has children" = mean(kids %like% "Yes"),
+  "Num. of children" = mean(nbKids, na.rm = TRUE), 
+  "In good health" = mean(health %in% c("Excellent", "Very good", "Good")),
+  # "Occupation data" = mean(!is.na(hgscale)),
+  # "H-G score" = mean(hgscale, na.rm = TRUE),
+  # "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  # "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  # "Ever unemp." = mean(lengthUnemp %in% c(
+  #   "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+  #   "More than 2 years"
+  # )),
+  "Hours per week" = mean(usualHoursWk, na.rm = TRUE),
+  "1--24" = mean(firmSize %like% "1-24"),
+  "25--499" = mean(firmSize %like% "25-499"),
+  "500 or more" = mean(firmSize %like% "500 or more"),
+  "Attitude to schoo" = mean(att2schlScr, na.rm = TRUE),
+  "Locus of control" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScr, na.rm = TRUE),
+  "Cog score" = mean(cogScore, na.rm = TRUE),
+  .N
+), by = degree25] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE)
 
-# parents occupation
-dtLsype[, .N / 6628, by = w4SOCMajorMP]
-dtLsype[inSubSample == T, .N / 4640, by = w4SOCMajorMP]
+xtable::xtable(dtSumStats, digits = 2)
+
+# occupations
+dtLsype[degree25 == "No degree", .(prop = .N / 669), by = .(NSSEC5)]
+dtLsype[degree25 == "First or higher degree", .(prop = .N / 978), by = .(NSSEC5)]
+
+```
 ```
 
 ## Wage distributions
