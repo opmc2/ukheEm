@@ -36,8 +36,8 @@ dir.create(here(figDir))
 
 resLsype <- resLsypeParIncCog_md
 
-maxK1 <- 6
-maxK2 <- 6
+maxK1 <- 6 # parental income
+maxK2 <- 6 # cognitive measure
 maxK <- 24
 ```
 
@@ -198,8 +198,6 @@ saveFig("pkPlot.png")
 ```
 
 ## Size (and means) of groups
-
-The groups sizes are reasonable, and the algorithm sorts strongly on ability. 
 
 ```{r groups size and means}
 

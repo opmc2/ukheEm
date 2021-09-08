@@ -206,27 +206,31 @@ The groups sizes are reasonable, and the algorithm sorts strongly on ability.
 
 ```{r groups size and means}
 
-dtPk <- bigDt[, .(
-  P_k = sum(pk) / .N,
-  mu = Hmisc::wtd.mean(y1, pk),
-  mu_mean = mean(mu),
-  alphaCons = Hmisc::wtd.mean(y2, pk)
+dtMu <- bigDt[, .(
+  # P_k = sum(pk) / NN,
+  alpha1 = Hmisc::wtd.mean(y1, pk),
+  alpha1_mean = mean(mu),
+  muCons = Hmisc::wtd.mean(y2, pk)
 ), by = .(nTypes, type)]
 
-dtPk[, muNorm := (mu - mean(mu)) / sd(mu)]
-dtPk[, alphaConsNorm := (alphaCons - mean(alphaCons)) / sd(alphaCons)]
+dtPk <- bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, type, d)]
+
+dtPk <- merge(dtPk, dtMu, by = c("nTypes", "type"))
+
+dtPk[, alpha1Norm := (alpha1 - mean(alpha1)) / sd(alpha1)]
+dtPk[, muConsNorm := (muCons - mean(muCons)) / sd(muCons)]
 
 dtPk <- melt(
   dtPk, 
-  measure.vars = c("muNorm", "alphaConsNorm")
+  measure.vars = c("alpha1Norm", "muConsNorm")
 )
 
 ggplot(
   data = dtPk[nTypes %between% c(2, 7)],
   mapping = aes(x = type)
 ) +
-  geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
+  geom_col(aes(y = P_k / 2, fill = d)) +
+  geom_point(aes(y = (value + 4)/6, shape = variable)) +
   facet_wrap(vars(nTypes), 
              labeller = as_labeller(function(x) paste0("K = ", x))) +
   scale_x_discrete(name = "Type (k)") +
@@ -234,57 +238,14 @@ ggplot(
     name = "Pr(k)",
     sec.axis = sec_axis(trans = ~. * 5 - 4)
   ) +
-  scale_color_discrete(name = NULL, 
-                       limits = c("muNorm", "alphaConsNorm"),
+  scale_shape_discrete(name = NULL, 
+                       limits = c("alpha1Norm", "muConsNorm"),
                        labels = c("Test score", "Wage @25")) +
+  scale_fill_discrete(name = "Degree") +
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
 saveFig("groupSizesMeansK2_K7.png")
-
-
-ggplot(
-  data = dtPk[nTypes %between% c(8, 13)],
-  mapping = aes(x = type)
-) +
-  geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
-  facet_wrap(vars(nTypes), 
-             labeller = as_labeller(function(x) paste0("K = ", x))) +
-  scale_x_discrete(name = "Type (k)") +
-  scale_y_continuous(
-    name = "Pr(k)",
-    sec.axis = sec_axis(trans = ~. * 5 - 4)
-  ) +
-  scale_color_discrete(name = NULL, 
-                       limits = c("muNorm", "alphaConsNorm"),
-                       labels = c("Test score", "Wage @25")) +
-  theme_classic() +
-  theme(legend.position = "bottom", text = element_text(size = 15))
-
-saveFig("groupSizesMeansK8_K13.png")
-
-
-ggplot(
-  data = dtPk[nTypes %between% c(14, 18)],
-  mapping = aes(x = type)
-) +
-  geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
-  facet_wrap(vars(nTypes), 
-             labeller = as_labeller(function(x) paste0("K = ", x))) +
-  scale_x_discrete(name = "Type (k)") +
-  scale_y_continuous(
-    name = "Pr(k)",
-    sec.axis = sec_axis(trans = ~. * 5 - 4)
-  ) +
-  scale_color_discrete(name = NULL, 
-                       limits = c("muNorm", "alphaConsNorm"),
-                       labels = c("Test score", "Wage @25")) +
-  theme_classic() +
-  theme(legend.position = "bottom", text = element_text(size = 15))
-
-saveFig("groupSizesMeansK14_K18.png")
 
 ```
 

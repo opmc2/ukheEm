@@ -250,7 +250,7 @@ ggplot(
   mapping = aes(x = type)
 ) +
   geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
+  geom_point(aes(y = (value + 4)/6, colour = variable, shape = variable)) +
   facet_wrap(vars(nTypes), 
              labeller = as_labeller(function(x) paste0("K = ", x))) +
   scale_x_discrete(name = "Type (k)") +
@@ -267,25 +267,25 @@ ggplot(
 saveFig("groupSizesMeansK8_K13.png")
 
 
-# ggplot(
-#   data = dtPk[nTypes %between% c(14, 18)],
-#   mapping = aes(x = type)
-# ) +
-#   geom_col(aes(y = P_k / 2)) +
-#   geom_point(aes(y = (value + 4)/6, colour = variable)) +
-#   facet_wrap(vars(nTypes), 
-#              labeller = as_labeller(function(x) paste0("K = ", x))) +
-#   scale_x_discrete(name = "Type (k)") +
-#   scale_y_continuous(
-#     name = "Pr(k)",
-#     sec.axis = sec_axis(trans = ~. * 5 - 4)
-#   ) +
-#   scale_color_discrete(name = NULL, 
-#                        limits = c("muNorm", "alphaConsNorm"),
-#                        labels = c("Parental Inc. @16", "Wage @25")) +
-#   theme_classic() +
-#   theme(legend.position = "bottom", text = element_text(size = 15))
-# 
+ggplot(
+  data = dtPk[nTypes == 6],
+  mapping = aes(x = type)
+) +
+  # geom_col(aes(y = P_k / 2)) +
+  geom_point(aes(y = (value + 4)/6, colour = variable, shape = variable)) +
+  facet_wrap(vars(nTypes), 
+             labeller = as_labeller(function(x) paste0("K = ", x))) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(
+    name = "Pr(k)",
+    sec.axis = sec_axis(trans = ~. * 5 - 4)
+  ) +
+  scale_color_discrete(name = NULL, 
+                       limits = c("alpha1Norm", "alpha2Norm", "muConsNorm"),
+                       labels = c("Parental Inc. @16", "Noncog", "Wage @25")) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
 # saveFig("groupSizesMeansK14_K18.png")
 
 ```
@@ -295,9 +295,9 @@ saveFig("groupSizesMeansK8_K13.png")
 ```{r wp} 
 
 dtWagePrem <- bigDt[, .(
-  alpha1d = Hmisc::wtd.mean(y1, pk),
-  alpha2d = Hmisc::wtd.mean(y2, pk),
-  mu = Hmisc::wtd.mean(w, pk)
+  alpha1d = Hmisc::wtd.mean((y1), pk),
+  alpha2d = Hmisc::wtd.mean((y2), pk),
+  mu = Hmisc::wtd.mean((w), pk)
 ), by = .(nTypes, type, d)]
 
 dtWagePrem <- dcast(dtWagePrem, 
@@ -317,7 +317,7 @@ setnames(dtWagePrem,
          ))
 
 dtWagePrem[, parIncPrem := alpha1d_TRUE - alpha1d_FALSE]
-dtWagePrem[, noncogPrem := log(alpha2d_TRUE) - log(alpha2d_FALSE)]
+dtWagePrem[, noncogPrem := alpha2d_TRUE - alpha2d_FALSE]
 dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
 
 dtWagePrem <- merge(dtWagePrem,
@@ -375,6 +375,93 @@ saveFig("wagePremK8_K13.png")
 #   theme_classic()
 
 ```
+
+```{r wp stdised} 
+
+stdise <- function(x) (x) / sd(x, na.rm = TRUE)
+
+dtWagePrem <- bigDt[, .(
+  alpha1d = Hmisc::wtd.mean(stdise(y1), pk),
+  alpha2d = Hmisc::wtd.mean(stdise(y2), pk),
+  mu = Hmisc::wtd.mean(stdise(w), pk)
+), by = .(nTypes, type, d)]
+
+dtWagePrem <- dcast(dtWagePrem, 
+                    formula = nTypes + type ~ d, 
+                    value.var = c("alpha1d", "alpha2d", "mu"))
+
+setnames(dtWagePrem, 
+         old = c(
+           "alpha1d_No degree", "alpha1d_First or higher degree", 
+           "alpha2d_No degree", "alpha2d_First or higher degree", 
+           "mu_No degree", "mu_First or higher degree"
+         ), 
+         new = c(
+           "alpha1d_FALSE", "alpha1d_TRUE",
+           "alpha2d_FALSE", "alpha2d_TRUE",
+           "mu_FALSE", "mu_TRUE"
+         ))
+
+dtWagePrem[, parIncPrem := alpha1d_TRUE - alpha1d_FALSE]
+dtWagePrem[, noncogPrem := log(alpha2d_TRUE) - log(alpha2d_FALSE)]
+dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
+
+dtWagePrem <- merge(dtWagePrem,
+                    dtPk[variable %in% c("alpha1Norm"), 
+                         .(nTypes, type, P_k)],
+                    by = c("nTypes", "type"))
+
+# dtWagePrem <- melt(dtWagePrem, 
+#                    measure.vars = c("testPrem", "wagePrem"))
+
+ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  geom_col(aes(y = noncogPrem, fill = "Noncognitive", colour = "Noncognitive")) +
+  facet_wrap(vars(nTypes), nrow = 2, scale = "free") +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA, NA),
+                    limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue", "green"),
+                      limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK2_K7_std.png")
+
+ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  geom_col(aes(y = noncogPrem, fill = "Noncognitive", colour = "Noncognitive")) +
+  facet_wrap(vars(nTypes), nrow = 2, scale = "free") +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA, NA),
+                    limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue", "green"),
+                      limits = c("Wage", "Par. inc.", "Noncognitive")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK8_K13_std.png")
+
+# ggplot(data = dtWagePrem[nTypes %between% c(14, 18)],
+#        mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
+#   geom_col(position = "dodge") +
+#   facet_wrap(vars(nTypes)) +
+#   theme_classic()
+
+```
+
 ## Unconditional graduate wage premium
 
 $$
