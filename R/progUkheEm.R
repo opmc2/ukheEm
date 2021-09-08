@@ -93,7 +93,7 @@ progUkheEm <- function(
   dt[, svType := startVals$svTypes]
 
   alpha <- startVals$alpha
-  sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
+  if (J == 2) sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
 
   # make dt long by types
   dtLong <- list()
