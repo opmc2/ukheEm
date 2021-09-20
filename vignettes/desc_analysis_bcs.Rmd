@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # library(ukheEm)
-devtools::load_all()
+# devtools::load_all()
 
 library(ggplot2)
 library(magrittr)
@@ -52,13 +52,14 @@ dtBcs <- merge(
   dtBcs4Em, 
   dtBcsWorkerFirm, 
   by = "bcsid"
-)
+) %>% 
+  merge(bcs70$bcs1986x[, .(bcsid, ethnicGroup = c6.14)])
 
 dtBcs <- dtBcs[complete.cases(dtBcs[, .(left, logWkPay, combnScore, c5e7, degree.x)])]
 ```
 
 ```{r summary stats BCS}
-dtSumStats <- dtBcs[, .(
+dtBcsSumStats <- dtBcs[, .(
   "Par. Inc. @16 (mean)" = mean(exp(left+right)/52),
   "Par. Inc. (std dev.)" = sd(exp(left+right)/52),
   "Wage (mean)" = mean(exp(logWkPay)),
@@ -98,10 +99,117 @@ dtSumStats <- dtBcs[, .(
   t() %>%
   as.data.table(keep.rownames = TRUE) 
 
-xtable::xtable(dtSumStats, digits = 2)
+xtable::xtable(dtBcsSumStats, digits = 2)
 
 dtBcs[degree.x == FALSE, .(prop = .N / 1290), by = rgsc91][order(rgsc91)]
 dtBcs[degree.x == TRUE, .(prop = .N / 522), by = rgsc91][order(rgsc91)]
+
+dtBcs[degree.x == FALSE, .(prop = .N / 1290), by = ethnicGroup]
+dtBcs[degree.x == TRUE, .(prop = .N / 522), by = ethnicGroup]
+
+
+dtBcs[, .(prop = .N / 1812), by = ethnicGroup]
+
+dtBcs[, soc9 := substr(soc, 1, 1)][, soc4 := fcase(
+  soc9 %in% c("1", "2"), "HigherMan",
+  soc9 %in% c("3", "5"), "IntermOcc",
+  soc9 %in% c("4", "6", "7", "8"), "LowerSuperv",
+  soc9 == "9", "Semi-routine"
+)]
+
+dtBcs[, .N / NN, by = soc4]
+
+dtBcs[degree.x == F, .N / 1290, by = soc4]
+dtBcs[degree.x == T, .N / 522, by = soc4]
+```
+
+## OLS wage model
+
+```{r ols wage}
+
+dtBcs[, parIncContn := left + right / 2]
+
+wageModelBcs <- lm(
+  logWkPay ~ parIncContn + combnScore + degree.x + sex + ethnicGroup +
+    selfEsteemScore + locScore + ghqScore, 
+  data = dtBcs
+)
+
+summary(wageModelBcs)
+
+
+```
+
+```{r lasso to select best vars}
+
+oldNpVars <- c(
+  # about work
+  "c5a1", "c5a2", "c5a3", "c5a4", "c5a5", "c5a6", "c5a7", "c5a8", "c5a9",
+  # job related
+  "c5d1", "c5d2", "c5d3", "c5d4", "c5d5", "c5d6", "c5d7", "c5d8",
+  "c5d9", "c5d10", "c5d11", "c5d12", "c5d13", "c5d14", "c5d15", "c5d16",
+  # adult life
+  "c5e1", "c5e2", "c5e3", "c5e4", "c5e5", "c5e6", "c5e7", "c5e8", "c5e9",
+  "c5e10", "c5e11", "c5e12", "c5e13", "c5e14", "c5e15"
+)
+
+newNpVars <- c(
+  # about work
+  "qualHelpJob", "whoKnowHelpJob", "deterHelpJob", "luckGetJob",
+  "educOnlyDelayEmp", "bestLvSchlASAP", "planCareerUseless", "takeAnyJob",
+  "expGrQuals",
+  # job related
+  "helpOth", "hiPay", "goodBoss", "wrkOutside", "selfEmp", "jobVaries",
+  "jobEasy", "jobAmbi", "jobMath", "tradeProf", "jobQuiet", "jobLT", "jobChall",
+  "jobTravel", "jobBuild", "jobRegHrs",
+  # adult life
+  "moreFun", "ftJob", "selfResp", "notBossed", "canVote", "noDoss", "moveOut",
+  "getMarr", "nightClub", "localComm", "xFilms", "drinkAlc", "politics", "kids",
+  "doWhatIWant"
+  # personality ones to add
+)
+
+setnames(dtBcs, oldNpVars, newNpVars)
+
+lassoFormulaBcs <- as.formula(
+  paste0("logWkPay ~ ", paste0(
+    c("parIncContn", "combnScore", "degree.y", "sex", "ethnicGroup", 
+      "selfEsteemScore", "locScore", "ghqScore", newNpVars), collapse = "+"
+  ))
+)
+
+wageModelBcs2 <- lm(
+  lassoFormulaBcs,
+  data = dtBcs
+)
+
+coefplot::coefplot(wageModelBcs2, sort = "magnitude")
+
+lassoDt <- model.frame(
+  lassoFormulaBcs, data = dtBcs
+)
+lassoX <- model.matrix(
+  lassoFormulaBcs, data = dtBcs
+)
+
+lassoY <- lassoDt[, "logWkPay"]
+
+library(glmnet)
+
+lassoWageBcs <- cv.glmnet(
+  x = lassoX, y = lassoY
+)
+
+plot(lassoWageBcs)
+
+# coefficients for "best" lambda
+coef(lassoWageBcs, s = "lambda.min")
+
+# coefficients for "one-standard-error" lambda
+coef(lassoWageBcs, s = "lambda.1se")
+
+# coefficients for other lambda
+coef(lassoWageBcs, s = exp(-3.4))
 ```
 
 ## Test scores ($y_1$)

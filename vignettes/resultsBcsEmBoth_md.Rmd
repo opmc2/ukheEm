@@ -352,6 +352,7 @@ dtWPuncond <- merge(
   WPu_dT = sum(P_kdT * wagePrem)
 ), by = nTypes]
 
+dtWPuncond[, nTypes := factor(nTypes, nTypesLevels)]
 
 ggplot(data = dtWPuncond,
        mapping = aes(x = nTypes)) +
@@ -370,6 +371,7 @@ ggplot(data = dtWPuncond,
 
 saveFig("uncondWP.png")
 
+dtWPuncond
 ```
 
 

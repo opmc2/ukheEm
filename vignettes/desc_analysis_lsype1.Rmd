@@ -1,5 +1,5 @@
 ---
-title: "Decsriptive statistics + probability model (LSYPE)"
+title: "Descriptive statistics + probability model (LSYPE)"
 output: rmarkdown::html_vignette
 bibliography: ukhe.bib
 vignette: >
@@ -24,10 +24,16 @@ devtools::load_all()
 library(ggplot2)
 library(magrittr)
 
+```
+
+```{r load data}
+
 # colorblind palette
-colorblind_palette <- c("#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", 
-                        "#AA4499", "#44AA99", "#999933", "#882255", "#661100", 
-                        "#6699CC", "#888888")
+colorblind_palette <- c(
+  "#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", 
+  "#AA4499", "#44AA99", "#999933", "#882255", "#661100", 
+  "#6699CC", "#888888"
+)
 
 # load data
 data("lsype1YP", "lsype1FB", "lsype1YPlabels", "lsype1FBlabels")
@@ -188,7 +194,7 @@ This does not seem to be an official "entry standard" to university, and it is n
 
 lsypeW8 <- as.data.table(lsype1YP[[8]])
 dtLsypeWorkerFirm <- lsypeW8[, .(
-  NSID, sex = W8CMSEX,
+  NSID, sex = W8CMSEX, ethnicGroup = W8DETHN6,
   # yrJobStart = b960270,
   inCouple = W8PART,
   married = W8CRNOWMA,
@@ -211,7 +217,7 @@ dtLsypeWorkerFirm <- lsypeW8[, .(
   firmSize = W8EMP
 )]
 
-dtLsype <- merge(
+dtLsype4SS <- merge(
   dtLsype4Em,
   dtLsypeWorkerFirm, 
   by = "NSID"
@@ -221,7 +227,7 @@ dtLsype <- merge(
 
 ```{r sumstats}
 
-dtSumStats <- dtLsype[, .(
+dtSumStats <- dtLsype4SS[, .(
   "Parental Inc. @16 (mean)" = mean(exp(logParInc)) / 52,
   "Par. Inc. (std dev.)" = sd(exp(logParInc) / 52),
   "Wage (mean)" = mean(exp(logWkPay)),
@@ -259,10 +265,33 @@ dtSumStats <- dtLsype[, .(
 xtable::xtable(dtSumStats, digits = 2)
 
 # occupations
-dtLsype[degree25 == "No degree", .(prop = .N / 669), by = .(NSSEC5)]
-dtLsype[degree25 == "First or higher degree", .(prop = .N / 978), by = .(NSSEC5)]
+dtLsype4SS[degree25 == "No degree", .(prop = .N / 669), by = .(NSSEC5)]
+dtLsype4SS[degree25 == "First or higher degree", .(prop = .N / 978), by = .(NSSEC5)]
 
+# ethnic group
+dtLsype4SS[degree25 == "No degree", .(prop = .N / 669), by = .(ethnicGroup)]
+dtLsype4SS[degree25 == "First or higher degree", .(prop = .N / 978), by = .(ethnicGroup)]
+
+dtLsype4SS[, (prop = .N / 1647), by = ethnicGroup]
 ```
+```{r ols wages}
+
+dtLsype4Ols <- merge(
+  dtLsype, dtLsype4Em[, .(NSID, logWkPay, logParInc, cogScore, degree25,
+                          sex, att2schlScr, locScore, ghqScr)],
+  by = "NSID", all.y = TRUE
+) %>% 
+  merge(dtLsypeWorkerFirm[, .(NSID, ethnicGroup)], by = "NSID", all.x = TRUE)
+
+wageModelLsype <- lm(
+  logWkPay ~ logParInc + cogScore + degree25 + W4BenefitsYP0b + sex + 
+    att2schlScr + ethnicGroup +
+    locScore + ghqScr
+  ,
+  data = dtLsype4Ols
+)
+
+summary(wageModelLsype)
 ```
 
 ## Wage distributions
