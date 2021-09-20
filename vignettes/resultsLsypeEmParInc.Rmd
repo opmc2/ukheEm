@@ -248,6 +248,28 @@ ggplot(
 
 saveFig("groupSizesMeansK2_K7.png")
 
+ggplot(
+  data = dtPk[nTypes == 3],
+  mapping = aes(x = type)
+) +
+  geom_col(aes(y = P_k / 2, fill = d)) +
+  geom_point(aes(y = (value + 4)/6, shape = variable)) +
+  facet_wrap(vars(nTypes), 
+             labeller = as_labeller(function(x) paste0("K = ", x))) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(
+    name = "Pr(k)",
+    sec.axis = sec_axis(trans = ~. * 5 - 4)
+  ) +
+  scale_shape_discrete(name = NULL, 
+                       limits = c("alpha1Norm", "muConsNorm"),
+                       labels = c("Parental income", "Wage @25")) +
+  scale_fill_discrete(name = NULL) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("groupSizesMeansK3.png")
+
 ```
 
 ## Type-specific graduate-wage premium at 25
@@ -272,7 +294,7 @@ dtWagePrem[, wagePrem := alpha_TRUE - alpha_FALSE]
 dtWagePrem[, parIncPrem := log(muD_TRUE) - log(muD_FALSE)]
 
 dtWagePrem <- merge(dtWagePrem, 
-                    dtPk[variable == "muNorm", .(nTypes, type, mu, P_k)],
+                    bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, type)],
                     by = c("nTypes", "type"))
 
 # dtWagePrem <- melt(dtWagePrem, 
@@ -296,6 +318,25 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
   theme(text = element_text(size = 15))
 
 saveFig("wagePremK2_K9.png")
+
+ggplot(data = dtWagePrem[nTypes == 3],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Par. inc.")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Par. inc.")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+saveFig("wagePremK3.png")
 
 ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
        mapping = aes(x = type, alpha = P_k)) +
@@ -361,6 +402,7 @@ ggplot(data = dtWPuncond,
 
 saveFig("uncondWP.png")
 
+dtWPuncond
 ```
 
 ## Pr(k,d)
@@ -559,7 +601,7 @@ saveFig("AlphaByDK8_K13.png")
 
 bigDt[, maxPk := max(pk), by = .(nTypes, id)]
 
-dtAssignedTypes <- bigDt[pk == maxPk, ]
+dtAssignedTypes <- bigDt[pk == maxPk]
 
 ```
 
@@ -657,18 +699,19 @@ dtAssignedTypes <- merge(
   dtLsypeWorkerFirm, 
   by = "id"
 ) %>% 
-  merge(dtLsype4Em[, .(id = NSID, locScore, att2schlScr, ghqScr)])
+  merge(dtLsype4Em[, .(id = NSID, cogScore, locScore, att2schlScr, ghqScr)])
 
 ```
 
 ```{r sumstats}
 
-dtSumStats <- dtAssignedTypes[nTypes == 2, .(
+dtSumStatsK3 <- dtAssignedTypes[nTypes == 3, .(
+  "Type" = unique(type),
+  "Degree" = mean(d %like% "First or higher degree"),
   "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
   "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
   "Wage (mean)" = mean(exp(y2)),
   "Wage (std dev.)" = sd(exp(y2)),
-  "Degree" = mean(d %like% "First or higher degree"),
   "Male" = mean(sex %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
   "Married" = mean(married %in% c("Spouse")),
@@ -689,18 +732,27 @@ dtSumStats <- dtAssignedTypes[nTypes == 2, .(
   "1--24" = mean(firmSize %like% "1-24"),
   "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
-  "Attitude to schoo" = mean(att2schlScr, na.rm = TRUE),
+  "Cognitive ability" = mean(cogScore, na.rm = TRUE),
+  "Attitude to school" = mean(att2schlScr, na.rm = TRUE),
   "Locus of control" = mean(locScore, na.rm = TRUE),
   "GHQ" = mean(ghqScr, na.rm = TRUE),
   .N
-)] %>%
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signiff, digits = 2),
+             .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE)
 
-xtable::xtable(dtSumStats, digits = 2)
+xtable::xtable(dtSumStatsK3, digits = 2)
 
 # occupations
-dtAssignedTypes[nTypes == 2, .(prop = .N / NN), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3, .N, by = .(type, d)]
+dtAssignedTypes[nTypes == 3 & type == 1 & d == "No degree", .(prop = .N / 154), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3 & type == 1 & d == "First or higher degree", .(prop = .N / 255), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3 & type == 2 & d == "No degree", .(prop = .N / 281), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3 & type == 2 & d == "First or higher degree", .(prop = .N / 518), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3 & type == 3 & d == "No degree", .(prop = .N / 6), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 3 & type == 3 & d == "First or higher degree", .(prop = .N / 124), by = .(NSSEC5)]
 
 ```
 

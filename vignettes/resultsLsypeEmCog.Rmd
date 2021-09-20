@@ -246,7 +246,7 @@ dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
 dtWagePrem[, parIncPrem := alpha_TRUE - alpha_FALSE]
 
 dtWagePrem <- merge(dtWagePrem, 
-                    dtPk[variable == "alpha1Norm", .(nTypes, type, alpha1, P_k)],
+                    bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, type)],
                     by = c("nTypes", "type"))
 
 # dtWagePrem <- melt(dtWagePrem, 
@@ -254,47 +254,23 @@ dtWagePrem <- merge(dtWagePrem,
 
 ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
        mapping = aes(x = type, alpha = P_k)) +
-  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
+  geom_col(aes(y = wagePrem, fill = "Wage")) +
+  # geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
-  scale_fill_manual(name = "Premia",
-                    values = c("red", NA),
-                    limits = c("Wage", "Par. inc.")) +
-  scale_colour_manual(name = "Premia",
-                      values = c(NA, "blue"),
-                      limits = c("Wage", "Par. inc.")) +
+  # scale_fill_manual(name = "Premia",
+  #                   values = c("red", NA),
+  #                   limits = c("Wage", "Cog. score")) +
+  # scale_colour_manual(name = "Premia",
+  #                     values = c(NA, "blue"),
+  #                     limits = c("Wage", "Cog. score")) +
   scale_alpha_continuous(name = "Pr(k)") +
   theme_classic() +
+  guides(fill = "none") +
   theme(text = element_text(size = 15))
 
 saveFig("wagePremK2_K9.png")
-
-ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
-       mapping = aes(x = type, alpha = P_k)) +
-  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
-  facet_wrap(vars(nTypes)) +
-  scale_x_discrete(name = "Type (k)") +
-  scale_y_continuous(name = "% difference") +
-  scale_fill_manual(name = "Premia",
-                    values = c("red", NA),
-                    limits = c("Wage", "Par. inc.")) +
-  scale_colour_manual(name = "Premia",
-                      values = c(NA, "blue"),
-                      limits = c("Wage", "Par. inc.")) +
-  scale_alpha_continuous(name = "Pr(k)") +
-  theme_classic() +
-  theme(text = element_text(size = 15))
-
-saveFig("wagePremK8_K13.png")
-
-# ggplot(data = dtWagePrem[nTypes %between% c(14, 18)],
-#        mapping = aes(x = type, y = value, fill = variable, alpha = P_k)) +
-#   geom_col(position = "dodge") +
-#   facet_wrap(vars(nTypes)) +
-#   theme_classic()
 
 ```
 ## Unconditional graduate wage premium
@@ -335,6 +311,7 @@ ggplot(data = dtWPuncond,
 
 saveFig("uncondWP.png")
 
+dtWPuncond
 ```
 
 ## Pr(k,d)
@@ -347,8 +324,8 @@ dtPkd <- bigDt[, .(
   P_kd = sum(pk) / NN,
   muD = Hmisc::wtd.mean(y1, pk, normwt = TRUE),
   sigmaNuD = sqrt(Hmisc::wtd.var(y1, pk, normwt = TRUE)),
-  alpha = Hmisc::wtd.mean(y2, pk, normwt = TRUE),
-  sigmaEps = sqrt(Hmisc::wtd.var(y2, pk, normwt = TRUE))
+  alpha = Hmisc::wtd.mean(w, pk, normwt = TRUE),
+  sigmaEps = sqrt(Hmisc::wtd.var(w, pk, normwt = TRUE))
 ), by = .(nTypes, type, d)]
 
 dtPkd[, muDNorm := (muD - mean(muD)) / sd(muD)]
@@ -411,7 +388,7 @@ saveFig("PrkdK8_K13.png")
 
 ggplot(
   data = dtPkd[nTypes %between% c(2, 9), ],
-  mapping = aes(x = type, y = muD, fill = d, alpha = P_kd)
+  mapping = aes(x = type, y = alpha, fill = d, alpha = P_kd)
 ) +
   geom_col(position = "dodge") +
   # geom_point(aes(y = alpha , shape = "log-wage (@25)"), stroke = .3) +
@@ -421,7 +398,7 @@ ggplot(
   theme_classic() +
   guides(shape = guide_legend()) +
   theme(text = element_text(size = 15), legend.position = "bottom") +
-  coord_cartesian(ylim = c(9, 12))
+  coord_cartesian(ylim = c(5, 8))
 
 saveFig("MuByDK2_K9.png")
 
@@ -472,7 +449,7 @@ ggplot(
   theme_classic() +
   guides(shape = guide_legend()) +
   theme(text = element_text(size = 15), legend.position = "bottom") +
-  coord_cartesian(ylim = c(5.8, 6.2))
+  coord_cartesian(ylim = c(5.8, 6.5))
 
 saveFig("AlphaByDK2_K7.png")
 
@@ -627,22 +604,23 @@ dtLsypeWorkerFirm <- lsypeW8[, .(
 )]
 
 dtAssignedTypes <- merge(
-  dtAssignedTypes[, .(nTypes, id, y1, y2, z, d, type, pk)], 
+  dtAssignedTypes[, .(nTypes, id, y1, w, z, d, type, pk)], 
   dtLsypeWorkerFirm, 
   by = "id"
 ) %>% 
-  merge(dtLsype4Em[, .(id = NSID, locScore, att2schlScr, ghqScr)])
+  merge(dtLsype4Em[, .(id = NSID, cogScore, locScore, att2schlScr, ghqScr, logParInc)])
 
 ```
 
 ```{r sumstats}
 
-dtSumStats <- dtAssignedTypes[nTypes == 2, .(
-  "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
-  "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
-  "Wage (mean)" = mean(exp(y2)),
-  "Wage (std dev.)" = sd(exp(y2)),
+dtSumStatsK3 <- dtAssignedTypes[nTypes == 2, .(
+  "Type" = unique(type),
   "Degree" = mean(d %like% "First or higher degree"),
+  "Parental Inc. @16 (mean)" = mean(exp(logParInc)) / 52,
+  "Par. Inc. (std dev.)" = sd(exp(logParInc) / 52),
+  "Wage (mean)" = mean(exp(w)),
+  "Wage (std dev.)" = sd(exp(w)),
   "Male" = mean(sex %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
   "Married" = mean(married %in% c("Spouse")),
@@ -663,18 +641,27 @@ dtSumStats <- dtAssignedTypes[nTypes == 2, .(
   "1--24" = mean(firmSize %like% "1-24"),
   "25--499" = mean(firmSize %like% "25-499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
-  "Attitude to schoo" = mean(att2schlScr, na.rm = TRUE),
+  "Cognitive ability" = mean(cogScore, na.rm = TRUE),
+  "Attitude to school" = mean(att2schlScr, na.rm = TRUE),
   "Locus of control" = mean(locScore, na.rm = TRUE),
   "GHQ" = mean(ghqScr, na.rm = TRUE),
   .N
-)] %>%
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signiff, digits = 2),
+             .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE)
 
-xtable::xtable(dtSumStats, digits = 2)
+xtable::xtable(dtSumStatsK3, digits = 2)
 
 # occupations
-dtAssignedTypes[nTypes == 2, .(prop = .N / NN), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 2, .N, by = .(type, d)][order(type,d)]
+dtAssignedTypes[nTypes == 2 & type == 1 & d == "No degree", .(prop = .N / 377), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 2 & type == 1 & d == "First or higher degree", .(prop = .N / 712), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 2 & type == 2 & d == "No degree", .(prop = .N / 28), by = .(NSSEC5)]
+dtAssignedTypes[nTypes == 2 & type == 2 & d == "First or higher degree", .(prop = .N / 108), by = .(NSSEC5)]
+# dtAssignedTypes[nTypes == 3 & type == 3 & d == "No degree", .(prop = .N / 6), by = .(NSSEC5)]
+# dtAssignedTypes[nTypes == 3 & type == 3 & d == "First or higher degree", .(prop = .N / 124), by = .(NSSEC5)]
 
 ```
 

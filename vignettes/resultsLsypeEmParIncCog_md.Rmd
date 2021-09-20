@@ -271,8 +271,7 @@ dtWagePrem[, noncogPrem := log(alpha2d_TRUE) - log(alpha2d_FALSE)]
 dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
 
 dtWagePrem <- merge(dtWagePrem,
-                    dtPk[variable %in% c("alpha1Norm"), 
-                         .(nTypes, type, P_k)],
+                    bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, types)],
                     by = c("nTypes", "type"))
 
 # dtWagePrem <- melt(dtWagePrem, 
@@ -319,6 +318,8 @@ dtWPuncond <- merge(
   WPu_dT = sum(P_kdT * wagePrem)
 ), by = nTypes]
 
+dtWPuncond[, nTypes := factor(nTypes, nTypesLevels)]
+
 
 ggplot(data = dtWPuncond,
        mapping = aes(x = nTypes)) +
@@ -337,6 +338,7 @@ ggplot(data = dtWPuncond,
 
 saveFig("uncondWP.png")
 
+dtWPuncond
 ```
 
 ## Pr(k,d)

@@ -54,8 +54,8 @@ bigDt <- rbindlist(bigDt)
 
 # reorder types by mu
 bigDt[, oldType := type]
-# bigDt[, mu := Hmisc::wtd.mean(y1, pk), by = .(nTypes, type)]
-bigDt[, type := frank(alpha1, ties.method = "dense"), by = .(nTypes)]
+bigDt[, muC := Hmisc::wtd.mean(w, pk), by = .(nTypes, type)]
+bigDt[, type := frank(muC, ties.method = "dense"), by = .(nTypes)]
 bigDt[, type := factor(type, levels = 1:maxK)]
 setorder(bigDt, nTypes, type, id)
 
@@ -210,9 +210,15 @@ The groups sizes are reasonable, and the algorithm sorts strongly on ability.
 
 dtPk <- bigDt[, .(
   P_k = sum(pk) / .N,
-  alpha1 = mean(alpha1),
-  alpha2 = Hmisc::wtd.mean(y2, pk),
-  muCons = Hmisc::wtd.mean(w, pk)
+  alpha1d = Hmisc::wtd.mean(left+right, pk),
+  alpha2d = Hmisc::wtd.mean(y2, pk),
+  muD = Hmisc::wtd.mean(w, pk)
+), by = .(nTypes, type, d)]
+
+dtPk[, `:=`(
+  alpha1 = Hmisc::wtd.mean(alpha1d, P_k),
+  alpha2 = Hmisc::wtd.mean(alpha2d, P_k),
+  muCons = Hmisc::wtd.mean(muD, P_k)
 ), by = .(nTypes, type)]
 
 dtPk[, alpha1Norm := (alpha1 - mean(alpha1)) / sd(alpha1)]
@@ -228,8 +234,10 @@ ggplot(
   data = dtPk[nTypes %between% c(2, 7)],
   mapping = aes(x = type)
 ) +
-  geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
+  geom_col(aes(y = P_k / 2, fill = d)) +
+  geom_line(
+    aes(y = (value + 7)/4, linetype = variable, group = variable)
+  ) +
   facet_wrap(vars(nTypes), 
              labeller = as_labeller(function(x) paste0("K = ", x))) +
   scale_x_discrete(name = "Type (k)") +
@@ -237,22 +245,24 @@ ggplot(
     name = "Pr(k)",
     sec.axis = sec_axis(trans = ~. * 5 - 4)
   ) +
-  scale_color_manual(name = NULL, 
-                     limits = c("alpha1Norm", "alpha2Norm", "muConsNorm"),
-                     labels = c("Parental Inc. @16", "Test score", "Wage @25"),
-                     values = c("red", "blue", "green")) +
+  scale_linetype_discrete(
+    name = NULL,
+    limits = c("alpha1Norm", "alpha2Norm", "muConsNorm"),
+    labels = c("Parental Inc. @16", "Test score", "Wage @25")
+  ) +
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
 saveFig("groupSizesMeansK2_K7.png")
 
-
 ggplot(
-  data = dtPk[nTypes %between% c(8, 13)],
+  data = dtPk[nTypes %between% c(8, 14)],
   mapping = aes(x = type)
 ) +
-  geom_col(aes(y = P_k / 2)) +
-  geom_point(aes(y = (value + 4)/6, colour = variable)) +
+  geom_col(aes(y = P_k / 2, fill = d)) +
+  geom_line(
+    aes(y = (value + 7)/4, linetype = variable, group = variable)
+  ) +
   facet_wrap(vars(nTypes), 
              labeller = as_labeller(function(x) paste0("K = ", x))) +
   scale_x_discrete(name = "Type (k)") +
@@ -260,35 +270,15 @@ ggplot(
     name = "Pr(k)",
     sec.axis = sec_axis(trans = ~. * 5 - 4)
   ) +
-  scale_color_manual(name = NULL, 
-                     limits = c("muNorm", "muBNorm", "alphaConsNorm"),
-                     labels = c("Parental Inc. @16", "Test score", "Wage @25"),
-                     values = c("red", "blue", "green")) +
+  scale_linetype_discrete(
+    name = NULL,
+    limits = c("alpha1Norm", "alpha2Norm", "muConsNorm"),
+    labels = c("Parental Inc. @16", "Test score", "Wage @25")
+  ) +
   theme_classic() +
   theme(legend.position = "bottom", text = element_text(size = 15))
 
-saveFig("groupSizesMeansK8_K13.png")
-
-# ggplot(
-#   data = dtPk[nTypes %between% c(14, 18)],
-#   mapping = aes(x = type)
-# ) +
-#   geom_col(aes(y = P_k / 2)) +
-#   geom_point(aes(y = (value + 4)/6, colour = variable)) +
-#   facet_wrap(vars(nTypes), 
-#              labeller = as_labeller(function(x) paste0("K = ", x))) +
-#   scale_x_discrete(name = "Type (k)") +
-#   scale_y_continuous(
-#     name = "Pr(k)",
-#     sec.axis = sec_axis(trans = ~. * 5 - 4)
-#   ) +
-#   scale_color_discrete(name = NULL, 
-#                        limits = c("muNorm", "alphaConsNorm"),
-#                        labels = c("Parental Inc. @16", "Wage @25")) +
-#   theme_classic() +
-#   theme(legend.position = "bottom", text = element_text(size = 15))
-# 
-# saveFig("groupSizesMeansK14_K18.png")
+saveFig("groupSizesMeansK8_K14.png")
 
 ```
 
@@ -311,7 +301,7 @@ dtWagePrem[, testPrem := log(alpha2d_TRUE) - log(alpha2d_FALSE)]
 dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
 
 dtWagePrem <- merge(dtWagePrem, 
-                    dtPk[variable == "alpha1Norm", .(nTypes, type, alpha1, P_k)],
+                    bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, type)],
                     by = c("nTypes", "type"))
 
 # dtWagePrem <- melt(dtWagePrem, 
@@ -320,7 +310,7 @@ dtWagePrem <- merge(dtWagePrem,
 ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
        mapping = aes(x = type, alpha = P_k)) +
   geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
+  # geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
@@ -332,6 +322,7 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
                       limits = c("Wage", "Test")) +
   scale_alpha_continuous(name = "Pr(k)") +
   theme_classic() +
+  guides(fill = "none", colour = "none") +
   theme(text = element_text(size = 15)) 
 
 
@@ -391,6 +382,8 @@ ggplot(data = dtWPuncond,
   theme(text = element_text(size = 15), legend.position = c(.9, .9))
 
 saveFig("uncondWP.png")
+
+dtWPuncond
 
 ```
 

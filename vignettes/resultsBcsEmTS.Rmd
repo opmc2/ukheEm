@@ -268,7 +268,7 @@ dtWagePrem[, wagePrem := alpha_TRUE - alpha_FALSE]
 dtWagePrem[, testPrem := log(muD_TRUE) - log(muD_FALSE)]
 
 dtWagePrem <- merge(dtWagePrem, 
-                    dtPk[variable == "muNorm", .(nTypes, type, mu, P_k)],
+                    bigDt[, .(P_k = sum(pk)/ NN), by = .(nTypes, type)],
                     by = c("nTypes", "type"))
 
 ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
@@ -290,6 +290,26 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
 
 
 saveFig("wagePremK2_K9.png")
+
+ggplot(data = dtWagePrem[nTypes %between% c(2, 6)],
+       mapping = aes(x = type, alpha = P_k)) +
+  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
+  geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_x_discrete(name = "Type (k)") +
+  scale_y_continuous(name = "% difference") +
+  scale_fill_manual(name = "Premia",
+                    values = c("red", NA),
+                    limits = c("Wage", "Test")) +
+  scale_colour_manual(name = "Premia",
+                      values = c(NA, "blue"),
+                      limits = c("Wage", "Test")) +
+  scale_alpha_continuous(name = "Pr(k)") +
+  theme_classic() +
+  theme(text = element_text(size = 15))
+
+
+saveFig("wagePremK2_K6.png")
 
 
 ggplot(data = dtWagePrem[nTypes %between% c(8, 13)],
@@ -353,6 +373,8 @@ ggplot(data = dtWPuncond,
   theme(text = element_text(size = 15))
 
 saveFig("uncondWP.png")
+
+dtWPuncond
 
 ```
 
@@ -517,22 +539,23 @@ dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
 )]
 
 dtAssignedTypes <- merge(
-  dtAssignedTypes[, .(nTypes, id, y1, y2, z, d, type, pk)], 
+  dtAssignedTypes[, .(nTypes, id, mu, sigmaNu, y2, z, d, type, pk)], 
   dtBcsWorkerFirm, 
   by = "id"
-)
+) %>% 
+  merge(dtBcs4Em[, .(id = bcsid, combnScore, locScore, selfEsteemScore, ghqScore, left, right)],
+        by = "id")
 
 ```
 
-
-```{r table by type K2 to K4}
-
-dtByTypeK2_4 <- dtAssignedTypes[nTypes %between% c(2, 4), .(
-  "Test score (mean)" = mean(y1),
-  "TS (std dev.)" = sd(y1),
+```{r summary stats BCS}
+dtSumStatsK3 <- dtAssignedTypes[nTypes == 5, .(
+  "Type" = unique(type),
+  "Degree" = mean(d),
+  "Par. Inc. @16 (mean)" = mean(exp(left+right), na.rm = T)/52,
+  "Par. Inc. (std dev.)" = sd(exp(left+right), na.rm = T)/52,
   "Wage (mean)" = mean(exp(y2)),
   "Wage (std dev.)" = sd(exp(y2)),
-  "Degree" = mean(d),
   "Male" = mean(sex %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
   "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
@@ -556,19 +579,37 @@ dtByTypeK2_4 <- dtAssignedTypes[nTypes %between% c(2, 4), .(
   "26--99" = mean(firmSize %like% "26 - 99"),
   "100--499" = mean(firmSize %like% "100 - 499"),
   "500 or more" = mean(firmSize %like% "500 or more"),
+  "Cognitive ability" = mean(combnScore, na.rm = TRUE),
+  "Self-esteem" = mean(selfEsteemScore, na.rm = TRUE),
+  "Loc" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScore, na.rm = TRUE),
   .N
-), by = .(nTypes, type)]
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signiff, digits = 2),
+             .SDcols = names(.)] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE) 
 
-setorder(dtByTypeK2_4, nTypes, type)
+xtable::xtable(dtSumStatsK3, digits = 2)
 
-dtByTypeK2_4[, names(dtByTypeK2_4) := lapply(.SD, signif2), 
-             .SDcols = names(dtByTypeK2_4)]
+dtAssignedTypes[, soc9 := substr(soc, 1, 1)][, soc4 := fcase(
+  soc9 %in% c("1", "2"), "HigherMan",
+  soc9 %in% c("3", "5"), "IntermOcc",
+  soc9 %in% c("4", "6", "7", "8"), "LowerSuperv",
+  soc9 == "9", "Semi-routine"
+)]
 
-dtByTypeK2_4 <- as.data.table(t(dtByTypeK2_4), keep.rownames = TRUE)
-
-xtable::xtable(dtByTypeK2_4, digits = 2)
-
-knitr::kable(dtByTypeK2_4)
+dtAssignedTypes[nTypes == 5, .N, by = .(type, d)][order(type, d)]
+dtAssignedTypes[nTypes == 5 & type == 1 & d == F, .(prop = .N / 135), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 1 & d == T, .(prop = .N / 11), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 2 & d == F, .(prop = .N / 735), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 2 & d == T, .(prop = .N / 33), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 3 & d == F, .(prop = .N / 482), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 3 & d == T, .(prop = .N / 273), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 4 & d == F, .(prop = .N / 642), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 4 & d == T, .(prop = .N / 201), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 5 & d == F, .(prop = .N / 78), by = .(soc4)]
+dtAssignedTypes[nTypes == 5 & type == 5 & d == T, .(prop = .N / 260), by = .(soc4)]
 ```
 
 ```{r table by type K5 to K6}
