@@ -28,7 +28,7 @@ library(magrittr)
 devtools::load_all()
 
 # functions
-signif2 <- function(x, ...) if (is.numeric(x)) signif(x, digits = 2)
+signif2 <- function(x, ...) if (is.numeric(x)) signif(x, digits = 3)
 saveFig <- function(x, ...) ggsave(here(figDir, x), width = 10, height = 6)
 
 options(scipen = 15)
@@ -543,13 +543,13 @@ dtAssignedTypes <- merge(
   dtBcsWorkerFirm, 
   by = "id"
 ) %>% 
-  merge(dtBcs4Em[, .(id = bcsid, combnScore, locScore, selfEsteemScore, ghqScore, left, right)],
+  merge(dtBcs4Em[, .(id = bcsid, cogScore, noncogScore, locScore, selfEsteemScore, ghqScore, left, right)],
         by = "id")
 
 ```
 
 ```{r summary stats BCS}
-dtSumStatsK3 <- dtAssignedTypes[nTypes == 5, .(
+dtSumStatsK3 <- dtAssignedTypes[nTypes == 3, .(
   "Type" = unique(type),
   "Degree" = mean(d),
   "Par. Inc. @16 (mean)" = mean(exp(left+right), na.rm = T)/52,
@@ -557,35 +557,36 @@ dtSumStatsK3 <- dtAssignedTypes[nTypes == 5, .(
   "Wage (mean)" = mean(exp(y2)),
   "Wage (std dev.)" = sd(exp(y2)),
   "Male" = mean(sex %like% "Male"),
-  "In relationship" = mean(inCouple %like% "Yes"),
-  "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
-  "Divorced" = mean(married %in% c("Separated", "Divorced")),
-  "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
-                                             "Living as a couple")),
-  "Has children" = mean(nbKids %in% paste0(1:5)),
-  "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
-  "In good health" = mean(health %in% c("Excellent", "Good")),
-  "Occupation data" = mean(!is.na(hgscale)),
-  "H-G score" = mean(hgscale, na.rm = TRUE),
-  "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
-  "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
-  "Ever unemp." = mean(lengthUnemp %in% c(
-    "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
-    "More than 2 years"
-  )),
-  "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
-  "10 or less" = mean(firmSize %like% "10 or less"), 
-  "11--25" = mean(firmSize %like% "11 - 25"),
-  "26--99" = mean(firmSize %like% "26 - 99"),
-  "100--499" = mean(firmSize %like% "100 - 499"),
-  "500 or more" = mean(firmSize %like% "500 or more"),
-  "Cognitive ability" = mean(combnScore, na.rm = TRUE),
+  # "In relationship" = mean(inCouple %like% "Yes"),
+  # "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
+  # "Divorced" = mean(married %in% c("Separated", "Divorced")),
+  # "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
+  #                                            "Living as a couple")),
+  # "Has children" = mean(nbKids %in% paste0(1:5)),
+  # "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
+  # "In good health" = mean(health %in% c("Excellent", "Good")),
+  # "Occupation data" = mean(!is.na(hgscale)),
+  # "H-G score" = mean(hgscale, na.rm = TRUE),
+  # "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
+  # "Age left ft ed." = mean(as.numeric(paste0(ageLeftFtEd)), na.rm = TRUE),
+  # "Ever unemp." = mean(lengthUnemp %in% c(
+  #   "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
+  #   "More than 2 years"
+  # )),
+  # "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
+  # "10 or less" = mean(firmSize %like% "10 or less"), 
+  # "11--25" = mean(firmSize %like% "11 - 25"),
+  # "26--99" = mean(firmSize %like% "26 - 99"),
+  # "100--499" = mean(firmSize %like% "100 - 499"),
+  # "500 or more" = mean(firmSize %like% "500 or more"),
+  "Cognitive ability" = mean(cogScore, na.rm = TRUE),
+  "Non-cognitive ability" = mean(noncogScore, na.rm = TRUE),
   "Self-esteem" = mean(selfEsteemScore, na.rm = TRUE),
   "Loc" = mean(locScore, na.rm = TRUE),
   "GHQ" = mean(ghqScore, na.rm = TRUE),
   .N
 ), by = .(type, d)][order(Type, Degree)] %>%
-  .[, names(.) := lapply(.SD, signiff, digits = 2),
+  .[, names(.) := lapply(.SD, signif2, digits = 3),
              .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE) 
