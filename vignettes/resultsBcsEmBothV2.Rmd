@@ -386,7 +386,94 @@ saveFig("uncondWP.png")
 dtWPuncond
 
 ```
+## Distributions of wages
 
+```{r wage dists}
+
+dt4DistsdT <- bigDt[d == TRUE, .(
+  P_k = sum(pk) / .N,
+  P_k2 = mean(pk),
+  mu = Hmisc::wtd.mean(w, pk),
+  sigma = sqrt(Hmisc::wtd.var(w, pk))
+), by = .(nTypes, type)]
+
+dt4DistsdF <- bigDt[d == FALSE, .(
+  P_k = sum(pk) / .N,
+  P_k2 = mean(pk),
+  mu = Hmisc::wtd.mean(w, pk),
+  sigma = sqrt(Hmisc::wtd.var(w, pk))
+), by = .(nTypes, type)]
+
+dtSim <- rbindlist(list(
+  data.table(
+    d = FALSE, d_star = "All",
+    w = rmvnormmix(
+      10000,
+      lambda = bigDt[nTypes == 4, mean(pk), by = type][, V1],
+      mu = matrix(dt4DistsdF[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdF[nTypes == 4, sigma], nrow = 4)
+    )
+  ),
+  data.table(
+    d = TRUE, d_star = "All",
+    w = rmvnormmix(
+      10000,
+      lambda = bigDt[nTypes == 4, mean(pk), by = type][, V1],
+      mu = matrix(dt4DistsdT[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdT[nTypes == 4, sigma], nrow = 4)
+    )
+  ),
+  data.table(
+    d = FALSE, d_star = "0",
+    w = rmvnormmix(
+      10000,
+      lambda = dt4DistsdF[nTypes == 4, P_k],
+      mu = matrix(dt4DistsdF[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdF[nTypes == 4, sigma], nrow = 4)
+    )
+  ),
+  data.table(
+    d = TRUE, d_star = "1",
+    w = rmvnormmix(
+      10000,
+      lambda = dt4DistsdT[nTypes == 4, P_k],
+      mu = matrix(dt4DistsdT[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdT[nTypes == 4, sigma], nrow = 4)
+    )
+  ),
+  data.table(
+    d = FALSE, d_star = "1",
+    w = rmvnormmix(
+      10000,
+      lambda = dt4DistsdT[nTypes == 4, P_k],
+      mu = matrix(dt4DistsdF[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdF[nTypes == 4, sigma], nrow = 4)
+    )
+  ),
+  data.table(
+    d = TRUE, d_star = "0",
+    w = rmvnormmix(
+      10000,
+      lambda = dt4DistsdF[nTypes == 4, P_k],
+      mu = matrix(dt4DistsdT[nTypes == 4, mu], nrow = 4),
+      sigma = matrix(dt4DistsdT[nTypes == 4, sigma], nrow = 4)
+    )
+  )
+))
+
+ggplot(
+  dtSim, mapping = aes(x = w.V1, colour = d, linetype = d_star)
+) + geom_density() +
+  facet_wrap(~d_star, ncol = 1) +
+  theme_classic()
+
+ggplot(
+  dtSim, mapping = aes(x = w.V1, colour = d, linetype = d_star)
+) + stat_ecdf() +
+  # facet_wrap(~d_star, ncol = 1) +
+  theme_classic()
+
+```
 
 ## Pr(k,d)
 
