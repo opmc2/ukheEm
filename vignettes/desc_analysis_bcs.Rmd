@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # library(ukheEm)
-# devtools::load_all()
+devtools::load_all()
 
 library(ggplot2)
 library(magrittr)
@@ -55,7 +55,7 @@ dtBcs <- merge(
 ) %>% 
   merge(bcs70$bcs1986x[, .(bcsid, ethnicGroup = c6.14)])
 
-dtBcs <- dtBcs[complete.cases(dtBcs[, .(left, logWkPay, combnScore, c5e7, degree.x)])]
+dtBcs <- dtBcs[complete.cases(dtBcs[, .(left, logWkPay, cogScore, c5e7, degree.x)])]
 ```
 
 ```{r summary stats BCS}
@@ -91,9 +91,16 @@ dtBcsSumStats <- dtBcs[, .(
   "Self-esteem" = mean(selfEsteemScore, na.rm = TRUE),
   "Loc" = mean(locScore, na.rm = TRUE),
   "GHQ" = mean(ghqScore, na.rm = TRUE),
-  "Cognitive" = mean(combnScore),
+  "Cognitive" = mean(cogScore),
+  "Noncognitive score" = mean(noncogScore, na.rm = TRUE),
+  "Reading score" = mean(readScore, na.rm = TRUE),
+  "Maths score" = mean(mathScore, na.rm = TRUE),
+  "Leave home" = mean(c5e7 %in% c("Matters very much", "Matters somewhat")),
+  "Leave home (matters alot)" = mean(c5e7 %in% c("Matters very much")),
+  "Leave home (matters somewhat)" = mean(c5e7 %in% c("Matters somewhat")),
+  "Leave home (doesn't matter)" = mean(c5e7 %in% c("Doesn't matter")),
   .N
-), by = degree.x] %>%
+)] %>%
   # .[, names(.) := lapply(.SD, signif2), 
   #            .SDcols = names(.)] %>%
   t() %>%
