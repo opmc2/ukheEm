@@ -244,10 +244,10 @@ ggplot(
   ) +
   scale_shape_discrete(name = NULL, 
                        limits = c("alpha1Norm", "muConsNorm"),
-                       labels = c("Test score", "Wage @25")) +
-  scale_fill_discrete(name = "Degree") +
+                       labels = c("Cognitive", "Wage @25")) +
+  scale_fill_discrete(name = NULL, limits = c(F, T), labels = c("No degree", "Degree")) +
   theme_classic() +
-  theme(legend.position = "bottom", text = element_text(size = 15))
+  theme(legend.position = "bottom", text = element_text(size = 25))
 
 saveFig("groupSizesMeansK2_K7.png")
 
@@ -275,25 +275,26 @@ dtWagePrem <- merge(dtWagePrem,
                     bigDt[, .(P_k = sum(pk)/ NN), by = .(nTypes, type)],
                     by = c("nTypes", "type"))
 
-ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
-       mapping = aes(x = type, alpha = P_k)) +
-  geom_col(aes(y = wagePrem, fill = "Wage", colour = "Wage")) +
-  geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
+ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
+       mapping = aes(x = type)) +
+  geom_col(aes(y = wagePrem, fill = "Wage")) +
+  # geom_col(aes(y = testPrem, fill = "Test", colour = "Test")) +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_x_discrete(name = "Type (k)") +
   scale_y_continuous(name = "% difference") +
-  scale_fill_manual(name = "Premia",
-                    values = c("red", NA),
-                    limits = c("Wage", "Test")) +
-  scale_colour_manual(name = "Premia",
-                      values = c(NA, "blue"),
-                      limits = c("Wage", "Test")) +
+  # scale_fill_manual(name = "Premia",
+  #                   values = c("red", NA),
+  #                   limits = c("Wage", "Test")) +
+  # scale_colour_manual(name = "Premia",
+  #                     values = c(NA, "blue"),
+  #                     limits = c("Wage", "Test")) +
   scale_alpha_continuous(name = "Pr(k)") +
   theme_classic() +
-  theme(text = element_text(size = 15))
+  theme(text = element_text(size = 25)) +
+  guides(fill = "none")
 
 
-saveFig("wagePremK2_K9.png")
+saveFig("wagePremK2_K7.png")
 
 ggplot(data = dtWagePrem[nTypes %between% c(2, 6)],
        mapping = aes(x = type, alpha = P_k)) +
@@ -466,6 +467,56 @@ ggplot(
   geom_point(aes(y = sigmaEps)) +
   facet_wrap(vars(nTypes)) +
   theme_classic()
+```
+
+```{r group alpha by degree}
+
+ggplot(
+  data = dtPkd[nTypes %between% c(2, 5), ],
+  mapping = aes(x = type, y = alpha, fill = d)
+) +
+  geom_col(position = "dodge") +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_y_continuous(name = "Log-wage (@25)") +
+  # scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
+  scale_fill_discrete(name = NULL) + 
+  theme_classic() +
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom") +
+  coord_cartesian(ylim = c(5.8, 6.2))
+
+saveFig("AlphaByDK2_K5.png", width = 7, height = 7)
+
+ggplot(
+  data = dtPkd[nTypes %between% c(2, 7), ],
+  mapping = aes(x = type, y = alpha, fill = d)
+) +
+  geom_col(position = "dodge") +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_y_continuous(name = "Log-wage (@25)") +
+  scale_x_discrete(name = "Type (k)") +
+  scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
+  scale_fill_discrete(name = NULL, limits = c(F, T), labels = c("No degree", "Degree")) + 
+  theme_classic() +
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 25), legend.position = "bottom") +
+  coord_cartesian(ylim = c(5, 5.6))
+
+saveFig("AlphaByDK2_K7.png")
+
+ggplot(
+  data = dtPkd[nTypes %between% c(8, 13), ],
+  mapping = aes(x = type, y = alpha, colour = d)
+) +
+  geom_point(shape = "triangle") +
+  facet_wrap(vars(nTypes), nrow = 2) +
+  scale_y_continuous(name = "Log-wage (@25)") +
+  theme_classic() +
+  guides(shape = guide_legend()) +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+
+saveFig("AlphaByDK8_K13.png")
+
 ```
 
 ## Analysing groups based on observables 

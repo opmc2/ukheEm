@@ -219,10 +219,10 @@ ggplot(
   ) +
   scale_shape_discrete(name = NULL, 
                        limits = c("alpha1Norm", "muConsNorm"),
-                       labels = c("Cog score", "Wage @25")) +
-  scale_fill_discrete(name = NULL) +
+                       labels = c("Non-cognitive", "Wage @25")) +
+  scale_fill_discrete(name = NULL, limits = c(F, T), labels = c("No degree", "Degree")) +
   theme_classic() +
-  theme(legend.position = "bottom", text = element_text(size = 15))
+  theme(legend.position = "bottom", text = element_text(size = 25))
 
 saveFig("groupSizesMeansK2_K7.png")
 
@@ -256,8 +256,8 @@ dtWagePrem <- merge(dtWagePrem,
 # dtWagePrem <- melt(dtWagePrem, 
 #                    measure.vars = c("testPrem", "wagePrem"))
 
-ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
-       mapping = aes(x = type, alpha = P_k)) +
+ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
+       mapping = aes(x = type)) +
   geom_col(aes(y = wagePrem, fill = "Wage")) +
   # geom_col(aes(y = parIncPrem, fill = "Par. inc.", colour = "Par. inc.")) +
   facet_wrap(vars(nTypes), nrow = 2) +
@@ -272,9 +272,9 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 9)],
   scale_alpha_continuous(name = "Pr(k)") +
   theme_classic() +
   guides(fill = "none") +
-  theme(text = element_text(size = 15))
+  theme(text = element_text(size = 25))
 
-saveFig("wagePremK2_K9.png")
+saveFig("wagePremK2_K7.png")
 
 ```
 ## Unconditional graduate wage premium
@@ -311,7 +311,7 @@ ggplot(data = dtWPuncond,
                       values = c(NA, "blue"),
                       limits = c("ATE", "ATT")) +
   theme_classic() +
-  theme(text = element_text(size = 15), legend.position = c(.9, .9))
+  theme(text = element_text(size = 25), legend.position = c(.9, .9))
 
 saveFig("uncondWP.png")
 
@@ -427,12 +427,12 @@ saveFig("MuByDK8_K13.png")
 
 ggplot(
   data = dtPkd[nTypes %between% c(2, 5), ],
-  mapping = aes(x = type, y = alpha, fill = d, alpha = P_kd)
+  mapping = aes(x = type, y = alpha, fill = d)
 ) +
   geom_col(position = "dodge") +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Log-wage (@25)") +
-  scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
+  # scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
   scale_fill_discrete(name = NULL) + 
   theme_classic() +
   guides(shape = guide_legend()) +
@@ -443,16 +443,17 @@ saveFig("AlphaByDK2_K5.png", width = 7, height = 7)
 
 ggplot(
   data = dtPkd[nTypes %between% c(2, 7), ],
-  mapping = aes(x = type, y = alpha, fill = d, alpha = P_kd)
+  mapping = aes(x = type, y = alpha, fill = d)
 ) +
   geom_col(position = "dodge") +
   facet_wrap(vars(nTypes), nrow = 2) +
   scale_y_continuous(name = "Log-wage (@25)") +
+  scale_x_discrete(name = "Type (k)") +
   scale_alpha_continuous(name = "Pr(k,d)", range = c(.3, 1)) +
-  scale_fill_discrete(name = NULL) + 
+  scale_fill_discrete(name = NULL, limits = c(F, T), labels = c("No degree", "Degree")) + 
   theme_classic() +
   guides(shape = guide_legend()) +
-  theme(text = element_text(size = 15), legend.position = "bottom") +
+  theme(text = element_text(size = 25), legend.position = "bottom") +
   coord_cartesian(ylim = c(5, 5.6))
 
 saveFig("AlphaByDK2_K7.png")
