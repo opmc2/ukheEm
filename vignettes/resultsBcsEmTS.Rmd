@@ -56,8 +56,12 @@ bigDt <- rbindlist(bigDt)
 
 # reorder types by mu
 bigDt[, oldType := type]
-# bigDt[, mu := Hmisc::wtd.mean(y1, pk), by = .(nTypes, type)]
-bigDt[, type := frank(mu, ties.method = "dense"), by = .(nTypes)]
+bigDt <- merge(
+  bigDt,
+  bigDt[d == FALSE, .(muDF = Hmisc::wtd.mean(y1, pk)), by = .(nTypes, type)],
+  by = c("nTypes", "type")
+)
+bigDt[, type := frank(muDF, ties.method = "dense"), by = .(nTypes)]
 bigDt[, type := factor(type, levels = 1:maxK)]
 setorder(bigDt, nTypes, type, id)
 
