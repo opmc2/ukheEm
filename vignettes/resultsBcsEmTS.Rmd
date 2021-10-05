@@ -168,8 +168,8 @@ ggplot(
   mapping = aes(x = pk, fill = type)
 ) +
   geom_histogram() +
-  facet_wrap(vars(nTypes), scale = "free") +
-  scale_y_continuous(name = NULL) +
+  facet_wrap(vars(nTypes)) +
+  scale_y_continuous(name = NULL, limits = c(0, 600)) +
   theme_classic() +
   theme(text = element_text(size = 15)) +
   guides(fill = "none")
@@ -181,8 +181,8 @@ ggplot(
   mapping = aes(x = pk, fill = type)
 ) +
   geom_histogram() +
-  facet_wrap(vars(nTypes), scale = "free") +
-  scale_y_continuous(name = NULL) +
+  facet_wrap(vars(nTypes)) +
+  scale_y_continuous(name = NULL, limits = c(0, 600)) +
   theme_classic() +
   theme(text = element_text(size = 15)) +
   guides(fill = "none")
@@ -520,6 +520,67 @@ saveFig("AlphaByDK8_K13.png")
 ```
 
 ## Analysing groups based on observables 
+
+```{r without assigning types}
+
+dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
+  id = bcsid, sex, degree,
+  yrJobStart = b960270,
+  inCouple = b960319,
+  married = b960322,
+  livingSitn = b960321,
+  nbKids = b960333,
+  age = b960338,
+  health = b960432,
+  soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  noVocQual = no_qual,
+  ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  alevel, slevel, # A-level / S-level passes,
+  hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  lengthUnemp = b960258, 
+  usualHoursWk = b960277, 
+  firmSize = b960272
+)]
+
+bigDtK4 <- merge(
+  bigDt[nTypes == 4, .(id, mu, sigmaNu, alpha, sigmaEps, y1, y2, z, d, type, pk)], 
+  dtBcsWorkerFirm, 
+  by = "id", all.x = TRUE
+) %>% 
+  merge(dtBcs4Em[, .(id = bcsid, cogScore, noncogScore, locScore, selfEsteemScore, ghqScore, left, right)],
+        by = "id", all.x = TRUE)
+
+```
+
+```{r sum stats by type not assigned}
+library(Hmisc)
+
+dtSumStatsK4Pk <- bigDtK4[, .(
+  "Type" = unique(type),
+  "Degree" = mean(d),
+  "Par. Inc. @16 (mean)" = wtd.mean(exp(left+right), pk,)/52,
+  "Par. Inc. (std dev.)" = sqrt(wtd.var(exp(left+right), pk)/52),
+  "Wage (mean)" = exp(wtd.mean(y2, pk)),
+  "Wage (std dev.)" = exp(sqrt(wtd.var(y2, pk))),
+  "Male" = wtd.mean(sex %like% "Male", pk),
+  "Cognitive ability" = wtd.mean(cogScore, pk),
+  "Non-cognitive ability" = wtd.mean(noncogScore, pk),
+  "Self-esteem" = wtd.mean(selfEsteemScore, pk),
+  "Loc" = wtd.mean(locScore, pk),
+  "GHQ" = wtd.mean(ghqScore, pk),
+  "N" = sum(pk)
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signif2, digits = 2),
+             .SDcols = names(.)] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE) 
+
+xtable::xtable(dtSumStatsK4Pk, digits = 2)
+
+```
 
 ### Assigning types
 
