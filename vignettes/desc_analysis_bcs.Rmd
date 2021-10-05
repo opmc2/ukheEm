@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 # library(ukheEm)
-devtools::load_all()
+# devtools::load_all()
 
 library(ggplot2)
 library(magrittr)
@@ -55,7 +55,7 @@ dtBcs <- merge(
 ) %>% 
   merge(bcs70$bcs1986x[, .(bcsid, ethnicGroup = c6.14)])
 
-dtBcs <- dtBcs[complete.cases(dtBcs[, .(left, logWkPay, cogScore, c5e7, degree.x)])]
+dtBcs <- dtBcs[complete.cases(dtBcs[, .(logWkPay, cogScore, noncogScore, c5e7, degree.x)])]
 ```
 
 ```{r summary stats BCS}
@@ -65,7 +65,7 @@ dtBcsSumStats <- dtBcs[, .(
   "Wage (mean)" = mean(exp(logWkPay)),
   "Wage (std dev.)" = sd(exp(logWkPay)),
   "Degree" = mean(degree.x),
-  "Male" = mean(sex %like% "Male"),
+  "Male" = mean(sex.y %like% "Male"),
   "In relationship" = mean(inCouple %like% "Yes"),
   "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
   "Divorced" = mean(married %in% c("Separated", "Divorced")),
@@ -101,8 +101,8 @@ dtBcsSumStats <- dtBcs[, .(
   "Leave home (doesn't matter)" = mean(c5e7 %in% c("Doesn't matter")),
   .N
 )] %>%
-  # .[, names(.) := lapply(.SD, signif2), 
-  #            .SDcols = names(.)] %>%
+  .[, names(.) := lapply(.SD, signiff),
+             .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE) 
 
