@@ -40,7 +40,7 @@ dtNonCog <- bcs70$bcs1986x[, ..noncogVars] %>%
 # merge datasets
 dtBcs <- merge(
   bcs70$bcs1986x[, .(
-    bcsid, attSchl = q46.1, parInc = oe2,
+    bcsid, attSchl = q46.1, parInc = oe2, sex = sex86,
     .SD
   ), .SDcols = c(workVars, jobVars, adultLifeVars)],
   bcs70$bcs1986derived[, .(
