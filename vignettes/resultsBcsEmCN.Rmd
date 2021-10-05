@@ -169,8 +169,8 @@ ggplot(
   mapping = aes(x = pk, fill = type)
 ) +
   geom_histogram() +
-  facet_wrap(vars(nTypes), scale = "free") +
-  scale_y_continuous(name = NULL) +
+  facet_wrap(vars(nTypes)) +
+  scale_y_continuous(name = NULL, limits = c(0, 600)) +
   theme_classic() +
   theme(text = element_text(size = 15)) +
   guides(fill = "none")
@@ -690,6 +690,68 @@ saveFig("AlphaByDK8_K13.png")
 
 ## Analysing groups based on observables 
 
+```{r without assigning types}
+
+dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
+  id = bcsid, sex, degree,
+  yrJobStart = b960270,
+  inCouple = b960319,
+  married = b960322,
+  livingSitn = b960321,
+  nbKids = b960333,
+  age = b960338,
+  health = b960432,
+  soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  noVocQual = no_qual,
+  ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  alevel, slevel, # A-level / S-level passes,
+  hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  lengthUnemp = b960258, 
+  usualHoursWk = b960277, 
+  firmSize = b960272
+)]
+
+bigDtK6 <- merge(
+  bigDt[nTypes == 6, .(id, alpha1, sigmaY1, mu, sigmaW, w, y1, z, d, type, pk)], 
+  dtBcsWorkerFirm, 
+  by = "id"
+) %>% 
+  merge(dtBcs4Em[, .(id = bcsid, cogScore, noncogScore, locScore, selfEsteemScore, ghqScore, left, right)],
+        by = "id")
+
+```
+
+```{r sum stats by type not assigned}
+library(Hmisc)
+
+dtSumStatsK6Pk <- bigDtK6[, .(
+  "Type" = unique(type),
+  "Degree" = mean(d),
+  "Par. Inc. @16 (mean)" = wtd.mean(exp(left+right), pk,)/52,
+  "Par. Inc. (std dev.)" = sqrt(wtd.var(exp(left+right), pk)/52),
+  "Wage (mean)" = exp(wtd.mean(w, pk)),
+  "Wage (std dev.)" = exp(sqrt(wtd.var(w, pk))),
+  "Male" = wtd.mean(sex %like% "Male", pk),
+  "Cognitive ability" = wtd.mean(cogScore, pk),
+  "Non-cognitive ability" = wtd.mean(noncogScore, pk),
+  "Self-esteem" = wtd.mean(selfEsteemScore, pk),
+  "Loc" = wtd.mean(locScore, pk),
+  "GHQ" = wtd.mean(ghqScore, pk),
+  "N" = sum(pk)
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signiff, digits = 2),
+             .SDcols = names(.)] %>%
+  t() %>%
+  as.data.table(keep.rownames = TRUE) 
+
+xtable::xtable(dtSumStatsK6Pk, digits = 2)
+
+```
+
+
 ### Assigning types
 
 ```{r assign types}
@@ -764,56 +826,55 @@ saveFig("AlphaByDK2_K9_AT.png")
 
 ```{r observed characteristics}
 
-lsypeW8 <- as.data.table(lsype1YP[[8]])
-dtLsypeWorkerFirm <- lsypeW8[, .(
-  id = NSID, sex = W8CMSEX,
-  # yrJobStart = b960270,
-  inCouple = W8PART,
-  married = W8CRNOWMA,
-  cohabit = W8NRANY,
-  kids = W8MORECH,
-  nbKids = W8MCHMANY,
-  health = W8GENA,
-  SOC2010 = W8JOBDOSOCCODE,
-  NSSEC5 = W8DNSSEC5,
-  # soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
-  # noVocQual = no_qual,
-  # ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
-  # alevel, slevel, # A-level / S-level passes,
-  # hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
-  # nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
-  # ageLeftSchl = b960129, ageLeftFtEd = b960132,
-  # trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
-  # lengthUnemp = b960258, 
-  usualHoursWk = W8WRKHRS, 
-  firmSize = W8EMP
+dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
+  id = bcsid, sex, degree,
+  yrJobStart = b960270,
+  inCouple = b960319,
+  married = b960322,
+  livingSitn = b960321,
+  nbKids = b960333,
+  age = b960338,
+  health = b960432,
+  soc, seg91, rgsc91, isco, goldth90, hgscale, # occupation / socio-econ classes
+  noVocQual = no_qual,
+  ol_ac, ol_de, gcse_ac, gcse_de, # O-level / GCSE grades
+  alevel, slevel, # A-level / S-level passes,
+  hed, pgce, opgc, postgrad, found, dip_un, other_ac, # academic qualifications
+  nvq_1, nvq_2, nvq_3, nvq_4, nvq_5, nvq_6, # nvqs at levels
+  ageLeftSchl = b960129, ageLeftFtEd = b960132,
+  trainCourse = b960134, yts = b960137, employerTrain = b960143, # traininig since end fte
+  lengthUnemp = b960258, 
+  usualHoursWk = b960277, 
+  firmSize = b960272
 )]
 
 dtAssignedTypes <- merge(
-  dtAssignedTypes[, .(nTypes, id, y1, y2, z, d, type, pk)], 
-  dtLsypeWorkerFirm, 
+  dtAssignedTypes[, .(nTypes, id, alpha1, sigmaY1, mu, sigmaW, w, y1, z, d, type, pk)], 
+  dtBcsWorkerFirm, 
   by = "id"
 ) %>% 
-  merge(dtLsype4Em[, .(id = NSID, locScore, att2schlScr, ghqScr)])
+  merge(dtBcs4Em[, .(id = bcsid, cogScore, noncogScore, locScore, selfEsteemScore, ghqScore, left, right)],
+        by = "id")
 
 ```
 
-```{r sumstats}
-
-dtSumStats <- dtAssignedTypes[nTypes == 2, .(
-  "Parental Inc. @16 (mean)" = mean(exp(y1)) / 52,
-  "Par. Inc. (std dev.)" = sd(exp(y1) / 52),
-  "Wage (mean)" = mean(exp(y2)),
-  "Wage (std dev.)" = sd(exp(y2)),
-  "Degree" = mean(d %like% "First or higher degree"),
+```{r summary stats BCS}
+dtSumStatsK3 <- dtAssignedTypes[nTypes == 6, .(
+  "Type" = unique(type),
+  "Degree" = mean(d),
+  "Par. Inc. @16 (mean)" = mean(exp(left+right), na.rm = T)/52,
+  "Par. Inc. (std dev.)" = sd(exp(left+right), na.rm = T)/52,
+  "Wage (mean)" = mean(exp(w)),
+  "Wage (std dev.)" = sd(exp(w)),
   "Male" = mean(sex %like% "Male"),
-  "In relationship" = mean(inCouple %like% "Yes"),
-  "Married" = mean(married %in% c("Spouse")),
+  # "In relationship" = mean(inCouple %like% "Yes"),
+  # "Married" = mean(married %in% c("Married - 1st", "Remarried - 2nd+")),
   # "Divorced" = mean(married %in% c("Separated", "Divorced")),
-  "Live w/ partner" = mean(cohabit %like% "Yes"),
-  "Has children" = mean(kids %like% "Yes"),
-  "Num. of children" = mean(nbKids, na.rm = TRUE), 
-  "In good health" = mean(health %in% c("Excellent", "Very good", "Good")),
+  # "Live w/ partner" = mean(livingSitn %in% c("Living with spouse", 
+  #                                            "Living as a couple")),
+  # "Has children" = mean(nbKids %in% paste0(1:5)),
+  # "Num. of children" = mean(as.numeric(paste0(nbKids)), na.rm = TRUE), 
+  # "In good health" = mean(health %in% c("Excellent", "Good")),
   # "Occupation data" = mean(!is.na(hgscale)),
   # "H-G score" = mean(hgscale, na.rm = TRUE),
   # "Age left schl" = mean(as.numeric(paste0(ageLeftSchl)), na.rm = TRUE), 
@@ -822,25 +883,45 @@ dtSumStats <- dtAssignedTypes[nTypes == 2, .(
   #   "3 months or less", "4-6 months", "7-11 months", "1-2 years", 
   #   "More than 2 years"
   # )),
-  "Hours per week" = mean(usualHoursWk, na.rm = TRUE),
-  "1--24" = mean(firmSize %like% "1-24"),
-  "25--499" = mean(firmSize %like% "25-499"),
-  "500 or more" = mean(firmSize %like% "500 or more"),
-  "Attitude to schoo" = mean(att2schlScr, na.rm = TRUE),
-  "Locus of control" = mean(locScore, na.rm = TRUE),
-  "GHQ" = mean(ghqScr, na.rm = TRUE),
+  # "Hours per week" = mean(as.numeric(paste0(usualHoursWk)), na.rm = TRUE),
+  # "10 or less" = mean(firmSize %like% "10 or less"), 
+  # "11--25" = mean(firmSize %like% "11 - 25"),
+  # "26--99" = mean(firmSize %like% "26 - 99"),
+  # "100--499" = mean(firmSize %like% "100 - 499"),
+  # "500 or more" = mean(firmSize %like% "500 or more"),
+  "Cognitive ability" = mean(cogScore, na.rm = TRUE),
+  "Non-cognitive ability" = mean(noncogScore, na.rm = TRUE),
+  "Self-esteem" = mean(selfEsteemScore, na.rm = TRUE),
+  "Loc" = mean(locScore, na.rm = TRUE),
+  "GHQ" = mean(ghqScore, na.rm = TRUE),
   .N
-)] %>%
+), by = .(type, d)][order(Type, Degree)] %>%
+  .[, names(.) := lapply(.SD, signiff, digits = 2),
+             .SDcols = names(.)] %>%
   t() %>%
-  as.data.table(keep.rownames = TRUE)
+  as.data.table(keep.rownames = TRUE) 
 
-xtable::xtable(dtSumStats, digits = 2)
+xtable::xtable(dtSumStatsK3, digits = 2)
 
-# occupations
-dtAssignedTypes[nTypes == 2, .(prop = .N / NN), by = .(NSSEC5)]
+dtAssignedTypes[, soc9 := substr(soc, 1, 1)][, soc4 := fcase(
+  soc9 %in% c("1", "2"), "HigherMan",
+  soc9 %in% c("3", "5"), "IntermOcc",
+  soc9 %in% c("4", "6", "7", "8"), "LowerSuperv",
+  soc9 == "9", "Semi-routine"
+)]
 
+dtAssignedTypes[nTypes == 3, .N, by = .(type, d)][order(type, d)]
+dtAssignedTypes[nTypes == 3 & type == 1 & d == F, .(prop = .N / 135), by = .(soc4)]
+dtAssignedTypes[nTypes == 3 & type == 1 & d == T, .(prop = .N / 11), by = .(soc4)]
+dtAssignedTypes[nTypes == 3 & type == 2 & d == F, .(prop = .N / 735), by = .(soc4)]
+dtAssignedTypes[nTypes == 3 & type == 2 & d == T, .(prop = .N / 33), by = .(soc4)]
+dtAssignedTypes[nTypes == 3 & type == 3 & d == F, .(prop = .N / 482), by = .(soc4)]
+dtAssignedTypes[nTypes == 3 & type == 3 & d == T, .(prop = .N / 273), by = .(soc4)]
+# dtAssignedTypes[nTypes == 5 & type == 4 & d == F, .(prop = .N / 642), by = .(soc4)]
+# dtAssignedTypes[nTypes == 5 & type == 4 & d == T, .(prop = .N / 201), by = .(soc4)]
+# dtAssignedTypes[nTypes == 5 & type == 5 & d == F, .(prop = .N / 78), by = .(soc4)]
+# dtAssignedTypes[nTypes == 5 & type == 5 & d == T, .(prop = .N / 260), by = .(soc4)]
 ```
-
 
 ```{r table by type K2 to K4}
 
