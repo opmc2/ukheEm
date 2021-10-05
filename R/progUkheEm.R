@@ -126,7 +126,7 @@ progUkheEm <- function(
 
     # ---- M-step ----
 
-    # update mu and sigmaNu (parameters of the test score distribution)
+    # update alpha and sigmaY (parameters of the test score distribution)
 
     if (isTRUE(y1cont)) {
       dtLong[, paste0("alpha", 1:J) := lapply(
@@ -173,7 +173,7 @@ progUkheEm <- function(
     }
 
 
-    # update alpha and sigmaEps (parameters of the wage dist. @25)
+    # update mu and sigmaW (parameters of the wage dist. @25)
 
     dtLong[, c("mu", "sigmaW") := .(
       ifelse(is.na(Hmisc::wtd.mean(w, pk)),
