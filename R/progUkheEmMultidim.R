@@ -31,7 +31,8 @@
 #'   should be:
 #'   \itemize{
 #'     \item \code{id}: a unique id for each individual
-#'     \item \code{y1-yJ}: the J pre-treatment outcomes
+#'     \item \code{y1-yJ}: the J pre-treatment measures. only y1 is specific (to
+#'       to type1)
 #'     \item \code{w}: the post-treatment outcome (log-wages)
 #'     \item \code{z}: the instrument
 #'     \item \code{d}: the treatment (university here)
@@ -153,12 +154,12 @@ progUkheEm_md <- function(
       if (J > 1) dtLong[, `:=` (
         alpha2 = Hmisc::wtd.mean(y2, pk),
         sigmaY2 = wtd.sd(y2, pk)
-      ), by = type2]
+      ), by = type]
 
       if (J > 2) dtLong[, `:=` (
         alpha3 = Hmisc::wtd.mean(y3, pk),
         sigmaY3 = wtd.sd(y3, pk)
-      ), by = type3]
+      ), by = type]
 
     } else {
       alphaSigmaRes <- list()
