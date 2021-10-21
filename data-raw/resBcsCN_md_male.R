@@ -36,4 +36,5 @@ for (K1 in 2:6) {
   }
 }
 
-use_data(resBcsCN_md_male, overwrite = TRUE)
+resBcsCN_md_maleV2 <- resBcsCN_md_male
+use_data(resBcsCN_md_maleV2, overwrite = TRUE)
