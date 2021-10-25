@@ -65,19 +65,23 @@ progUkheEm <- function(
   dt, K, varList,
   startVals = "kmeans",
   maxiter = 400,
-  y1cont = TRUE, y1log = FALSE,
+  y1cont = TRUE, y1log = FALSE, bsWeights = FALSE,
   J = 1
 ) {
 
   if (is.character(dt)) dt <- load(here::here(dt))
 
-  cols2keep <- varList
+  if (isFALSE(bsWeights)) {
+    cols2keep <- varList
 
-  dt <- dt[, ..cols2keep]
-  names(dt) <- names(varList)
-  dt <- dt[complete.cases(dt)]
+    dt <- dt[, ..cols2keep]
+    names(dt) <- names(varList)
+    dt <- dt[complete.cases(dt)]
 
-  NN <- dt[, .N]
+    NN <- dt[, .N]
+  } else {
+    NN <- dt[type == 1, .N]
+  }
 
   if (isFALSE(y1cont)) {
     outcomes <- c("left", "right", paste0("y", 2:J), "w")
@@ -88,19 +92,30 @@ progUkheEm <- function(
   # set start values
   if (startVals == "kmeans") {
       startVals <- kmeansSVs(dt[, ..outcomes], K, y1cont = y1cont, J = J)
+
+      dt[, svType := startVals$svTypes]
+
+      alpha <- startVals$alpha
+      if (J == 2) sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
+
+      # make dt long by types
+      dtLong <- list()
+      for (k in 1:K) {
+        dtLong[[k]] <- data.table(dt, type = as.character(k))
+      }
+      dtLong <- rbindlist(dtLong)
+
+      dtLong[, pk := fcase(type == as.character(svType), .9,
+                           default = .1 / (K-1))]
+
+  } else if (startVals == "dt") {
+    dt_long <- dt
+    # update pk to include weights
+    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
+  } else {
+    print("Error: Unknown starting values.")
+    stop()
   }
-
-  dt[, svType := startVals$svTypes]
-
-  alpha <- startVals$alpha
-  if (J == 2) sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
-
-  # make dt long by types
-  dtLong <- list()
-  for (k in 1:K) {
-    dtLong[[k]] <- data.table(dt, type = as.character(k))
-  }
-  dtLong <- rbindlist(dtLong)
 
   # lists to track loop
   listLike <- list()
@@ -110,10 +125,6 @@ progUkheEm <- function(
   iter <- 1L
   delta <- 100
   tol <- 1e-3
-
-  # ---- pre-loop setup ----
-  dtLong[, pk := fcase(type == as.character(svType), .9,
-                       default = .1 / (K-1))]
 
 
   # -------------- #
@@ -306,6 +317,9 @@ progUkheEm <- function(
       dtLong[is.na(pk), pk := 0]
       print("Some pk were NaN. Replaced by zero.")
     }
+
+    # update pk to include weights
+    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
 
     # increase iter by 1
     iter <- iter + 1
