@@ -65,6 +65,13 @@ bigDt[, type := frank(muDF, ties.method = "dense"), by = .(nTypes)]
 bigDt[, type := factor(type, levels = 1:18)]
 setorder(bigDt, nTypes, type, id)
 
+# merge noncog scores
+bigDt <- merge(
+  bigDt, 
+  dtBcs4Em[, .(id = bcsid, noncogScore)],
+  by = "id", all.x = TRUE
+)
+
 # save number of individuals
 NN <- bigDt[nTypes == 2 & type == 1, .N]
 ```
@@ -229,6 +236,69 @@ saveFig("groupSizesMeansK2_K7.png")
 
 ```
 
+## Plot group sizes on cog noncog axes
+
+```{r plot groups sizes on cog noncog axes}
+
+K <- 3
+
+dtMuByD <- bigDt[, .(
+  P_k = sum(pk) / NN,
+  alphaC = Hmisc::wtd.mean(y1, pk),
+  alphaNc = Hmisc::wtd.mean(noncogScore, pk),
+  alpha1_mean = mean(mu),
+  mu = Hmisc::wtd.mean(w, pk)
+), by = .(nTypes, type, d)]
+
+bigDt <- merge(
+  bigDt, 
+  dtMuByD[d == TRUE, .(nTypes, type, muD1 = mu)],
+  by = c("nTypes", "type")
+) %>% 
+  merge(
+    dtMuByD[d == FALSE, .(nTypes, type, muD0 = mu)],
+    by = c("nTypes", "type")
+  )
+
+bigDt[, alphaNc := Hmisc::wtd.mean(noncogScore, pk), by = .(nTypes, type)]
+bigDt[, cogType := frank(alpha1, ties.method = "dense"), by = nTypes]
+bigDt[, noncogType := frank(alphaNc, ties.method = "dense"), by = nTypes]
+
+dtMeasures <- bigDt[nTypes == K, .(
+  cog = sum(pk*alpha1), noncog = sum(pk*alphaNc), w1 = sum(pk*muD1), 
+  w0 = sum(pk*muD0), d = unique(d)
+), by = id]
+
+ggplot() +
+  geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k)
+  ) +
+  # geom_text(
+  #   data = dtMuByD[nTypes == K],
+  #   mapping = aes(x = alphaC, y = alphaNc, 
+  #                 colour = d, label = signif(P_k, digits = 2)),
+  #   colour = "black"
+  # ) +
+  scale_size_area(max_size = 10) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  guides(colour = "none", size = "none")
+
+ggplot() +
+  geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  theme_classic()
+
+dtMeasures[, wagePrem := w1 - w0]
+
+ggplot(data = dtMeasures, aes(x = wagePrem, fill = d)) +
+  geom_histogram()
+
+
+```
+
 ## Type-specific graduate-wage premium at 25
 
 ```{r wp} 
@@ -251,7 +321,11 @@ dtWagePrem[, wagePrem := mu_TRUE - mu_FALSE]
 dtWagePrem[, parIncPrem := alpha_TRUE - alpha_FALSE]
 
 dtWagePrem <- merge(dtWagePrem, 
-                    bigDt[, .(P_k = sum(pk) / NN), by = .(nTypes, type)],
+                    bigDt[, .(
+                      P_k = sum(pk) / NN, 
+                      cog = Hmisc::wtd.mean(y1, pk),
+                      noncog = Hmisc::wtd.mean(noncogScore, pk)
+                    ), by = .(nTypes, type, cogType, noncogType)],
                     by = c("nTypes", "type"))
 
 # dtWagePrem <- melt(dtWagePrem, 
@@ -278,6 +352,35 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
 saveFig("wagePremK2_K7.png")
 
 ```
+
+```{r 3dwp plots}
+
+library(plotly)
+
+bigDt[, alphaNc := Hmisc::wtd.mean(noncogScore, pk), by = .(nTypes, type)]
+bigDt[, cogType := frank(alpha1, ties.method = "dense"), by = nTypes]
+bigDt[, noncogType := frank(alphaNc, ties.method = "dense"), by = nTypes]
+
+zMat <- matrix(nrow = K, ncol = K)
+for (i in 1:K) {
+  for (j in 1:K) {
+    zMat[i, j] <- ifelse(
+      length(dtWagePrem[nTypes == K & cogType == i & noncogType == j, wagePrem]) == 0,
+      NA, dtWagePrem[nTypes == K & cogType == i & noncogType == j, wagePrem])
+  }
+}
+
+K <- 4
+fig <- plot_ly(
+  x = ~dtWagePrem[nTypes == K][order(type)][, cog], 
+  y = ~dtWagePrem[nTypes == K][order(type)][, noncog], 
+  z = ~dtWagePrem[nTypes == K][order(type)][, wagePrem],
+  type = "scatter3d", mode = "lines"
+)
+fig
+
+```
+
 ## Unconditional graduate wage premium
 
 $$
