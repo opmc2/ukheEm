@@ -192,7 +192,7 @@ progUkheEm <- function(
              Hmisc::wtd.mean(w, pk)),
       ifelse(is.na(wtd.sd(w, pk)),
              sigmaW,
-             sqrt(Hmisc::wtd.mean(w, pk)))),
+             sqrt(Hmisc::wtd.var(w, pk)))),
       by = .(type, d)]
 
 
