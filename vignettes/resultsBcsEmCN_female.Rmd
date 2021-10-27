@@ -145,7 +145,7 @@ dtLikelihood <- melt(
   variable.name = "criteria"
 )
 
-dtLikelihood[iter == 399, maxIter := TRUE]
+dtLikelihood[iter == 599, maxIter := TRUE]
 
 ggplot(
   data = dtLikelihood,
