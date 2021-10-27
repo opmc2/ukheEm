@@ -26,7 +26,7 @@ for (K in 2:20) {
       z = "c5e7", # adult life benefits: live away from home
       d = "degree"
     ),
-    maxiter = 400,
+    maxiter = 600,
     y1cont = TRUE,
     y1log = FALSE,
     J = 1
