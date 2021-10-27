@@ -294,6 +294,108 @@ saveFig("groupSizesMeansK8_K13.png")
 
 ```
 
+## Plot group sizes on cog noncog axes
+
+```{r plot groups sizes on cog noncog axes}
+
+K <- 5
+
+dtMuByD <- bigDt[, .(
+  P_k = sum(pk) / NN,
+  alphaC = Hmisc::wtd.mean(y1, pk),
+  alphaNc = Hmisc::wtd.mean(noncogScore, pk),
+  alpha1_mean = mean(mu),
+  mu = Hmisc::wtd.mean(w, pk), sigmaW = mean(sigmaW)
+), by = .(nTypes, type, d)]
+
+bigDt <- merge(
+  bigDt, 
+  dtMuByD[d == TRUE, .(nTypes, type, muD1 = mu, sigWd1 = sigmaW)],
+  by = c("nTypes", "type")
+) %>% 
+  merge(
+    dtMuByD[d == FALSE, .(nTypes, type, muD0 = mu, sigWd0 = sigmaW)],
+    by = c("nTypes", "type")
+  )
+
+bigDt[, alphaNc := Hmisc::wtd.mean(noncogScore, pk), by = .(nTypes, type)]
+bigDt[, cogType := frank(alpha1, ties.method = "dense"), by = nTypes]
+bigDt[, noncogType := frank(alphaNc, ties.method = "dense"), by = nTypes]
+
+dtMeasures <- bigDt[nTypes == K, .(
+  cog = sum(pk*alpha1), noncog = sum(pk*alphaNc), w1 = sum(pk*muD1), 
+  w0 = sum(pk*muD0), d = unique(d)
+), by = id]
+
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
+  ) +
+  geom_text_repel(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc-0.015,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", x = 66, y = -0.01, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 47, y = -.28, label = "Type 1") +
+  annotate(geom = "label", x = 47, y = 0.09, label = "Type 2") +
+  annotate(geom = "label", x = 54, y = 0.3, label = "Type 3") +
+  annotate(geom = "label", x = 67, y = 0.22, label = "Type 4") +
+  annotate(geom = "label", x = 78, y = 0.43, label = "Type 5") +
+  scale_size_area(max_size = 20) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 15)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.45, .45)) +
+  guides(colour = "none", size = "none") 
+
+saveFig("groupSizesPositionsK5.png")
+
+```
+
+```{r wp dists}
+
+ggplot() +
+  geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  theme_classic()
+
+dtMeasuresAll <- bigDt[, .(
+  cog = sum(pk*alpha1), noncog = sum(pk*alphaNc), w1 = sum(pk*(muD1)), 
+  w0 = sum(pk*(muD0)), d = unique(d)
+), by = .(nTypes, id)]
+
+dtMeasuresAll[, wagePrem := w1 - w0]
+
+ggplot(data = dtMeasuresAll[nTypes == maxK &wagePrem %between% c(-.5, .5)], aes(x = wagePrem, colour = d)) +
+  geom_density(adjust = 1.5) +
+  annotate(geom = "label", x = .05, y = 4, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", x = .10, y = 10, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  scale_x_continuous(name = "w1 - w0") +
+  theme_classic() +
+  theme(text = element_text(size = 15)) +
+  guides(colour = "none") +
+  coord_cartesian(xlim = c(-.4, .5))
+
+saveFig("densityGradPremByDKmax.png")
+
+stdise <- function(x) (x - mean(x)) / sd(x)
+
+dtMeasuresAll[, lCog := stdise(cog)]
+dtMeasuresAll[, lNoncog := stdise(noncog)]
+
+# correlation between wagePrem and cognitive / noncognitive ability
+lmWagePrem1 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + lNoncog -1)]
+lmWagePrem2 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + lNoncog + lCog:lNoncog-1)]
+lmWagePrem3 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + I(lCog^2) + lNoncog + I(lNoncog^2) + lCog:lNoncog-1)]
+
+stargazer::stargazer(lmWagePrem1, lmWagePrem2, lmWagePrem3)
+```
+
 ## Type-specific graduate-wage premium at 25
 
 ```{r wp} 
@@ -301,11 +403,12 @@ saveFig("groupSizesMeansK8_K13.png")
 dtWagePrem <- bigDt[, .(
   alpha1d = Hmisc::wtd.mean((y1), pk),
   alpha2d = Hmisc::wtd.mean((y2), pk),
+  alphaC = mean(alpha1), alphaNc = mean(alpha2),
   mu = Hmisc::wtd.mean((w), pk)
 ), by = .(nTypes, type, d)]
 
 dtWagePrem <- dcast(dtWagePrem, 
-                    formula = nTypes + type ~ d, 
+                    formula = nTypes + type + alphaC + alphaNc ~ d, 
                     value.var = c("alpha1d", "alpha2d", "mu"))
 
 # setnames(dtWagePrem, 
@@ -379,10 +482,131 @@ saveFig("wagePremK8_K13.png")
 #   facet_wrap(vars(nTypes)) +
 #   theme_classic()
 
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_TRUE),
+    shape = 1
+  ) +
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_FALSE)
+  ) +
+  geom_text(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = type, label = ifelse(round(wagePrem, digits = 2) < 0.01, "<0.01", round(wagePrem, digits = 2))),
+    colour = "white"
+  ) +
+  # annotate(geom = "label", x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  # annotate(geom = "label", x = 66, y = 0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 48, y = -.25, label = "Type 1") +
+  annotate(geom = "label", x = 47, y = 0.09, label = "Type 2") +
+  annotate(geom = "label", x = 55, y = 0.30, label = "Type 4") +
+  annotate(geom = "label", x = 68, y = 0.24, label = "Type 3") +
+  annotate(geom = "label", x = 78, y = 0.43, label = "Type 5") +
+  scale_size_continuous(range = c(10,20)) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 15)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.35, .5)) +
+  guides(colour = "none", size = "none") 
+
+saveFig("groupWagePremsPositionsK5.png")
+
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_TRUE),
+    shape = 1
+  ) +
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_FALSE)
+  ) +
+  # geom_text(
+  #   data = dtWagePrem[nTypes == K],
+  #   mapping = aes(x = alphaC, y = alphaNc-0.015,
+  #                 colour = type, label = ifelse(round(wagePrem, digits = 2) < 0.01, "<0.01", round(wagePrem, digits = 2)))
+  # ) +
+  # annotate(geom = "label", x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  # annotate(geom = "label", x = 66, y = 0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 48, y = -.25, label = "Type 1") +
+  annotate(geom = "label", x = 47, y = 0.09, label = "Type 2") +
+  annotate(geom = "label", x = 55, y = 0.30, label = "Type 3") +
+  annotate(geom = "label", x = 68, y = 0.24, label = "Type 4") +
+  annotate(geom = "label", x = 78, y = 0.43, label = "Type 5") +
+  scale_size_continuous(range = c(5,20)) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 15)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.35, .5)) +
+  guides(colour = "none", size = "none") 
+
+saveFig("groupWagesPositionsK5.png")
+
 ```
 
-``` 
+### Variance decomposition
 
+
+```{r var decomp}
+
+dtWagePrem[, .(var(mu_FALSE), var(mu_TRUE), mean(wagePrem)), by = .(nTypes)]
+
+K = 5
+
+bigDt[nTypes == K, .(wtd.var(w, pk), wtd.mean(w, pk)), by = .(type, d)][
+  , .(mean(V1), var(V2)), by = d][, .(unexVar = mean(V1), muVar = mean(V2))]
+
+bigDt[nTypes == K & type == 1, mean(w), by = d][, .(dVar = var(V1))]
+
+
+bigDt[nTypes == K & type == 1, mean(w), by = d][, .(dVar = var(V1))] / 
+  bigDt[nTypes == K & type == 1, var(w)]
+
+bigDt[nTypes == K, .(wtd.var(w, pk), wtd.mean(w, pk)), by = .(type, d)
+      ][
+  , .(mean(V1), var(V2)), by = d][, .(unexVar = mean(V1), muVar = mean(V2))] / 
+  bigDt[nTypes == K & type == 1, var(w)]
+```
+
+
+```{r 3d plot wage prem}
+
+# 3d plot
+
+library(mgcv)
+mod <- gam(wagePrem ~ te(alphaC) + te(alphaNc) + ti(alphaC, alphaNc), data=dtWagePrem)
+
+alphaC.seq <- seq(min(dtWagePrem$alphaC, na.rm=TRUE), 
+               max(dtWagePrem$alphaC, na.rm=TRUE), length=10)
+alphaNc.seq <- seq(min(dtWagePrem$alphaNc, na.rm=TRUE), 
+                  max(dtWagePrem$alphaNc, na.rm=TRUE), length=10)
+
+predfun <- function(x,y){
+  newdat <- data.frame(alphaC = x, alphaNc=y)
+  predict(mod, newdata=newdat)
+}
+
+fit <- outer(alphaC.seq, alphaNc.seq, Vectorize(predfun))
+
+library(plotly)
+
+plot_ly() %>% 
+  # add_mesh(x = ~dtWagePrem[nTypes == 16]$alphaC,
+  #          y = ~dtWagePrem[nTypes == 16]$alphaNc,
+  #          z = ~dtWagePrem[nTypes == 16]$wagePrem,
+  #          color = ~dtWagePrem[nTypes == 16]$wagePrem,
+  #          colors = colorRamp(rainbow(8)))
+  add_surface(x = ~alphaC.seq, y = ~alphaNc.seq, z = t(fit))
+
+``` 
+```
 stdise <- function(x) (x) / sd(x, na.rm = TRUE)
 
 dtWagePrem <- bigDt[, .(
@@ -506,6 +730,27 @@ ggplot(data = dtWPuncond,
 saveFig("uncondWP.png")
 
 dtWPuncond
+
+```
+
+## OLS estimates
+
+```{r OLS estimates}
+
+dtPkd <- bigDt[, .(P_kd = sum(pk) / NN), by = .(nTypes, type, d)]
+
+dtPkd[, Pk_d := P_kd / sum(P_kd), by = .(nTypes, d)]
+
+dtPkd <- dcast(
+  dtPkd, nTypes + type ~ d,
+  value.var = c("P_kd", "Pk_d")
+) %>% 
+  merge(
+    dtWagePrem[, .(nTypes, type, mu_TRUE, mu_FALSE)]
+  )
+ 
+dtOls <- dtPkd[, .(Bols = sum((Pk_d_TRUE - Pk_d_FALSE) * mu_FALSE)), by = nTypes]
+dtPkd[, olsWeights := Pk_d_TRUE - Pk_d_FALSE]
 ```
 
 ## Pr(k,d)
@@ -722,8 +967,8 @@ dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
   firmSize = b960272
 )]
 
-bigDtK8 <- merge(
-  bigDt[nTypes == 4, .(id, alpha1, sigmaY1, mu, sigmaW, w, y1, z, d, type, pk)], 
+bigDtK <- merge(
+  bigDt[nTypes == 5, .(id, alpha1, sigmaY1, mu, sigmaW, w, y1, z, d, type, pk)], 
   dtBcsWorkerFirm, 
   by = "id"
 ) %>% 
@@ -735,7 +980,7 @@ bigDtK8 <- merge(
 ```{r sum stats by type not assigned}
 library(Hmisc)
 
-dtSumStatsK8Pk <- bigDtK8[, .(
+dtSumStatsKPk <- bigDtK[, .(
   "Type" = unique(type),
   "Degree" = mean(d),
   "Par. Inc. @16 (mean)" = wtd.mean(exp(left+right), pk,)/52,
@@ -757,8 +1002,9 @@ dtSumStatsK8Pk <- bigDtK8[, .(
   t() %>%
   as.data.table(keep.rownames = TRUE) 
 
-xtable::xtable(dtSumStatsK8Pk, digits = 2)
+xtable::xtable(dtSumStatsKPk, digits = 2)
 
+dtWagePrem[nTypes == 5]
 ```
 
 

@@ -65,6 +65,13 @@ bigDt[, type := frank(muDF, ties.method = "dense"), by = .(nTypes)]
 bigDt[, type := factor(type, levels = 1:18)]
 setorder(bigDt, nTypes, type, id)
 
+# merge noncog scores
+bigDt <- merge(
+  bigDt, 
+  dtBcs4Em[, .(id = bcsid, noncogScore)],
+  by = "id", all.x = TRUE
+)
+
 # save number of individuals
 NN <- bigDt[nTypes == 2 & type == 1, .N]
 ```
@@ -138,7 +145,7 @@ dtLikelihood <- melt(
   variable.name = "criteria"
 )
 
-dtLikelihood[iter == 399, maxIter := TRUE]
+dtLikelihood[iter == 599, maxIter := TRUE]
 
 ggplot(
   data = dtLikelihood,
@@ -229,6 +236,79 @@ saveFig("groupSizesMeansK2_K7.png")
 
 ```
 
+## Plot group sizes on cog noncog axes
+
+```{r plot groups sizes on cog noncog axes}
+
+K <- 3
+
+dtMuByD <- bigDt[, .(
+  P_k = sum(pk) / NN,
+  alphaC = Hmisc::wtd.mean(y1, pk),
+  alphaNc = Hmisc::wtd.mean(noncogScore, pk),
+  alpha1_mean = mean(mu),
+  mu = Hmisc::wtd.mean(w, pk)
+), by = .(nTypes, type, d)]
+
+bigDt <- merge(
+  bigDt, 
+  dtMuByD[d == TRUE, .(nTypes, type, muD1 = mu)],
+  by = c("nTypes", "type")
+) %>% 
+  merge(
+    dtMuByD[d == FALSE, .(nTypes, type, muD0 = mu)],
+    by = c("nTypes", "type")
+  )
+
+bigDt[, alphaNc := Hmisc::wtd.mean(noncogScore, pk), by = .(nTypes, type)]
+bigDt[, cogType := frank(alpha1, ties.method = "dense"), by = nTypes]
+bigDt[, noncogType := frank(alphaNc, ties.method = "dense"), by = nTypes]
+
+dtMeasures <- bigDt[nTypes == K, .(
+  cog = sum(pk*alpha1), noncog = sum(pk*alphaNc), w1 = sum(pk*muD1), 
+  w0 = sum(pk*muD0), d = unique(d)
+), by = id]
+
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
+  ) +
+  geom_text_repel(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", x = 61, y = 0.25, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", x = 63, y = 0.00, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 40, y = 0.41, label = "Type 1") +
+  annotate(geom = "label", x = 58, y = 0.41, label = "Type 2") +
+  annotate(geom = "label", x = 77, y = 0.41, label = "Type 3") +
+  # annotate(geom = "label", x = 79, y = 0.41, label = "Type 4") +
+  scale_size_area(max_size = 20) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 15)) +
+  coord_cartesian(xlim = c(35, 80), ylim = c(-.1, .4)) +
+  guides(colour = "none", size = "none")
+
+saveFig("groupSizesPositionsK3.png")
+
+ggplot() +
+  geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  theme_classic()
+
+dtMeasures[, wagePrem := w1 - w0]
+
+ggplot(data = dtMeasures, aes(x = wagePrem, colour = d)) +
+  geom_density()
+
+
+```
+
 ## Type-specific graduate-wage premium at 25
 
 ```{r wp} 
@@ -273,7 +353,8 @@ ggplot(data = dtWagePrem[nTypes %between% c(2, 7)],
   scale_alpha_continuous(name = "Pr(k)") +
   theme_classic() +
   guides(fill = "none") +
-  theme(text = element_text(size = 25))
+  theme(text = element_text(size = 25)) + 
+  coord_cartesian(ylim = c(0, NA))
 
 saveFig("wagePremK2_K7.png")
 
@@ -562,7 +643,7 @@ dtSumStatsK3Pk <- bigDtK3[, .(
   "Self-esteem" = wtd.mean(selfEsteemScore, pk),
   "Loc" = wtd.mean(locScore, pk),
   "GHQ" = wtd.mean(ghqScore, pk),
-  "N" = sum(pk)
+  "N" = sum(pk) / NN
 ), by = .(type, d)][order(Type, Degree)] %>%
   .[, names(.) := lapply(.SD, signiff, digits = 2),
              .SDcols = names(.)] %>%

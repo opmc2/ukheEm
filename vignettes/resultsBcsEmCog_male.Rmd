@@ -145,7 +145,7 @@ dtLikelihood <- melt(
   variable.name = "criteria"
 )
 
-dtLikelihood[iter == 399, maxIter := TRUE]
+dtLikelihood[iter == 599, maxIter := TRUE]
 
 ggplot(
   data = dtLikelihood,
@@ -157,7 +157,7 @@ ggplot(
   scale_x_continuous(name = "Number of types (G)", breaks = seq(2, maxK, by = 2)) +
   scale_y_continuous(name = NULL) +
   scale_shape_manual(
-    name = NULL, labels = "Reached max. \niterations (400)",
+    name = NULL, labels = "Reached max. \niterations (600)",
     values = 1, breaks = TRUE
   ) +
   theme_classic() + 
@@ -270,22 +270,32 @@ dtMeasures <- bigDt[nTypes == K, .(
 ), by = id]
 
 ggplot() +
-  geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
   geom_point(
     data = dtMuByD[nTypes == K],
-    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k)
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
   ) +
-  # geom_text(
-  #   data = dtMuByD[nTypes == K],
-  #   mapping = aes(x = alphaC, y = alphaNc, 
-  #                 colour = d, label = signif(P_k, digits = 2)),
-  #   colour = "black"
-  # ) +
-  scale_size_area(max_size = 10) +
+  geom_text(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", x = 63, y = 0.16, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", x = 63, y = -0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 44, y = 0.35, label = "Type 1") +
+  annotate(geom = "label", x = 61, y = 0.35, label = "Type 2") +
+  annotate(geom = "label", x = 78, y = 0.35, label = "Type 3") +
+  # annotate(geom = "label", x = 76, y = 0.31, label = "Type 4") +
+  scale_size_area(max_size = 20) +
   scale_x_continuous(name = "Cognitive") +
   scale_y_continuous(name = "Noncognitive") +
   theme_bw() +
-  guides(colour = "none", size = "none")
+  theme(text = element_text(size = 15)) +
+  coord_cartesian(xlim = c(35, 80), ylim = c(-.1, .4)) +
+  guides(colour = "none", size = "none") 
+
+saveFig("groupSizesPositionsK3.png")
 
 ggplot() +
   geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
@@ -293,8 +303,8 @@ ggplot() +
 
 dtMeasures[, wagePrem := w1 - w0]
 
-ggplot(data = dtMeasures, aes(x = wagePrem, fill = d)) +
-  geom_histogram()
+ggplot(data = dtMeasures, aes(x = wagePrem, colour = d)) +
+  geom_density()
 
 
 ```
@@ -637,7 +647,7 @@ dtBcsWorkerFirm <- bcs70$bcs1996x[, .(
   firmSize = b960272
 )]
 
-bigDtK3 <- merge(
+bigDtK <- merge(
   bigDt[nTypes == 3, .(id, alpha1, sigmaY1, mu, sigmaW, w, y1, z, d, type, pk)], 
   dtBcsWorkerFirm, 
   by = "id"
@@ -650,7 +660,7 @@ bigDtK3 <- merge(
 ```{r sum stats by type not assigned}
 library(Hmisc)
 
-dtSumStatsK3Pk <- bigDtK3[, .(
+dtSumStatsPk <- bigDtK[, .(
   "Type" = unique(type),
   "Degree" = mean(d),
   "Par. Inc. @16 (mean)" = wtd.mean(exp(left+right), pk,)/52,
@@ -665,14 +675,14 @@ dtSumStatsK3Pk <- bigDtK3[, .(
   "Self-esteem" = wtd.mean(selfEsteemScore, pk),
   "Loc" = wtd.mean(locScore, pk),
   "GHQ" = wtd.mean(ghqScore, pk),
-  "N" = sum(pk)
+  "N" = sum(pk) / NN
 ), by = .(type, d)][order(Type, Degree)] %>%
   .[, names(.) := lapply(.SD, signiff, digits = 2),
              .SDcols = names(.)] %>%
   t() %>%
   as.data.table(keep.rownames = TRUE) 
 
-xtable::xtable(dtSumStatsK3Pk, digits = 2)
+xtable::xtable(dtSumStatsPk, digits = 2)
 
 ```
 
