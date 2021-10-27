@@ -186,14 +186,25 @@ progUkheEm <- function(
 
     # update mu and sigmaW (parameters of the wage dist. @25)
 
-    dtLong[, c("mu", "sigmaW") := .(
-      ifelse(is.na(Hmisc::wtd.mean(w, pk)),
+    dtLong[, `:=` (
+      mu = ifelse(is.na(Hmisc::wtd.mean(w, pk)),
              mu,
-             Hmisc::wtd.mean(w, pk)),
-      ifelse(is.na(wtd.sd(w, pk)),
-             sigmaW,
-             sqrt(Hmisc::wtd.var(w, pk)))),
+             Hmisc::wtd.mean(w, pk))),
+      # sigmaW = ifelse(is.na(wtd.sd(w, pk)),
+      #        sigmaW,
+      #        sqrt(Hmisc::wtd.var(w, pk)))),
       by = .(type, d)]
+
+    dtLong[, `:=` (
+      # mu = ifelse(is.na(Hmisc::wtd.mean(w, pk)),
+      #             mu,
+      #             Hmisc::wtd.mean(w, pk))),
+      sigmaW = ifelse(is.na(wtd.sd(w - mu, pk)),
+             sigmaW,
+             sqrt(wtd.var(w - mu, pk)))),
+      by = .(d)]
+
+
 
 
 

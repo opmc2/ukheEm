@@ -199,7 +199,7 @@ progUkheEm_md <- function(
 
     dtLong[, sigmaW := ifelse(is.na(wtd.sd(w - mu, pk)),
                               sigmaW,
-                              wtd.sd(w - mu, pk)), by = .(type, d)]
+                              wtd.sd(w - mu, pk)), by = .(d)]
 
     # pi(k,z,d)
 
