@@ -65,6 +65,13 @@ bigDt[, type := frank(muDF, ties.method = "dense"), by = .(nTypes)]
 bigDt[, type := factor(type, levels = 1:maxK)]
 setorder(bigDt, nTypes, type, id)
 
+# merge noncog scores
+bigDt <- merge(
+  bigDt, 
+  dtBcs4Em[, .(id = bcsid, noncogScore)],
+  by = "id", all.x = TRUE
+)
+
 # save number of individuals
 NN <- bigDt[nTypes == 2 & type == 1, .N]
 ```
