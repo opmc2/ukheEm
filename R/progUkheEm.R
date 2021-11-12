@@ -66,7 +66,7 @@ progUkheEm <- function(
   startVals = "kmeans",
   maxiter = 400,
   y1cont = TRUE, y1log = FALSE, bsWeights = FALSE,
-  J = 1
+  J = 1, sigmaYconst = TRUE
 ) {
 
   if (is.character(dt)) dt <- load(here::here(dt))
@@ -144,9 +144,15 @@ progUkheEm <- function(
         .SD, Hmisc::wtd.mean, weights = pk
       ), by = .(type), .SDcols = paste0("y", 1:J)]
 
-      dtLong[, paste0("sigmaY", 1:J) := lapply(
-        .SD, wtd.sd, weights = pk
-      ), by = .(type), .SDcols = paste0("y", 1:J)]
+      if (isTRUE(sigmaYconst)) {
+        dtLong[, paste0("sigmaY", 1:J) := lapply(
+          .SD, sd
+        ), .SDcols = paste0("y", 1:J)]
+      } else {
+        dtLong[, paste0("sigmaY", 1:J) := lapply(
+          .SD, wtd.sd, weights = pk
+        ), by = .(type), .SDcols = paste0("y", 1:J)]
+      }
 
     } else if (J > 1) {
       alphaSigmaRes <- list()
