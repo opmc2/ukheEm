@@ -10,7 +10,7 @@
 
 # load packages
 # library(ukheEm)
-load_all()
+devtools::load_all()
 
 # call progUkheEm() on BCS data using parental income as y1
 resBcsCogNoncog_male <- list()
@@ -29,8 +29,9 @@ for (K in 2:20) {
     maxiter = 400,
     y1cont = TRUE,
     y1log = FALSE,
-    J = 2
+    J = 2, sigmaYconst = FALSE
   )
 }
 
-use_data(resBcsCogNoncog_male, overwrite = TRUE)
+
+usethis::use_data(resBcsCogNoncog_male, overwrite = TRUE)
