@@ -15,7 +15,7 @@ devtools::load_all()
 # call progUkheEm() on BCS data using parental income as y1
 resBcsCogNoncog_male <- list()
 for (K in 2:20) {
-  resBcsCogNoncog_male[[K]] <- progUkheEm(
+  resBcsCogNoncog_male[[K]] <- progUkheEm_v4r(
     dt = dtBcs4Em[sex == 1],
     K = K,
     varList = c(
@@ -29,7 +29,7 @@ for (K in 2:20) {
     maxiter = 400,
     y1cont = TRUE,
     y1log = FALSE,
-    J = 2, sigmaYconst = FALSE
+    J = 2 #, sigmaYconst = FALSE
   )
 }
 
