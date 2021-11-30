@@ -37,6 +37,7 @@ saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = w
 figDir <- "vignettes/fig/BcsCN_male"
 dir.create(here(figDir))
 
+load("~/Dropbox/work/myRpkgs/ukheEm/data/resultsVersionPaper/resBcsCogNoncog_male.rda")
 resBcs <- resBcsCogNoncog_male
 
 maxK <- length(resBcs)
@@ -356,6 +357,36 @@ ggplot() +
 
 saveFig("groupSizesPositionsK5.png")
 
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
+  ) +
+  geom_text_repel(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc-0.015,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", size = 5, x = 52, y = 0.33, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", size = 5, x = 58, y = -.25, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", size = 5, x = 47, y = -.22, label = "Type 1") +
+  annotate(geom = "label", size = 5, x = 48, y = 0.2, label = "Type 2") +
+  annotate(geom = "label", size = 5, x = 60, y = 0.4, label = "Type 4") +
+  annotate(geom = "label", size = 5, x = 71, y = 0.0, label = "Type 3") +
+  annotate(geom = "label", size = 5, x = 78, y = 0.4, label = "Type 5") +
+  scale_size_area(max_size = 20) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 25)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.45, .45)) +
+  guides(colour = "none", size = "none") +
+  labs(subtitle = "Male")
+
+saveFig("groupSizesPositionsK5_4slides.png")
+
 ```
 
 ```{r wp dists}
@@ -536,6 +567,41 @@ ggplot() +
     data = dtWagePrem[nTypes == K],
     mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_FALSE)
   ) +
+  geom_text(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = type, label = ifelse(round(wagePrem, digits = 2) < 0.01, "<0.01", round(wagePrem, digits = 2))),
+    colour = "white", size = 5
+  ) +
+  # annotate(geom = "label", x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  # annotate(geom = "label", x = 66, y = 0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 46.0, y = -.24, label = "Type 1", size = 5) +
+  annotate(geom = "label", x = 47.5, y = 0.14, label = "Type 2", size = 5) +
+  annotate(geom = "label", x = 59.5, y = 0.38, label = "Type 4", size = 5) +
+  annotate(geom = "label", x = 70.5, y = 0.01, label = "Type 3", size = 5) +
+  annotate(geom = "label", x = 77.5, y = 0.42, label = "Type 5", size = 5) +
+  scale_size_continuous(range = c(10,20)) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 25)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.35, .5)) +
+  guides(colour = "none", size = "none") +
+  labs(subtitle = "Male")
+
+saveFig("groupWagePremsPositionsK5_4slides.png")
+
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_TRUE),
+    shape = 1
+  ) +
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_FALSE)
+  ) +
   annotate(geom = "label", x = 46.0, y = -.24, label = "Type 1") +
   annotate(geom = "label", x = 47.5, y = 0.14, label = "Type 2") +
   annotate(geom = "label", x = 59.5, y = 0.38, label = "Type 4") +
@@ -562,7 +628,7 @@ dtWagePrem[, .(var(mu_FALSE), var(mu_TRUE), mean(wagePrem)), by = .(nTypes)]
 
 K = 5
 
-bigDt[nTypes == K, .(wtd.var(w, pk), wtd.mean(w, pk)), by = .(type, d)][
+bigDt[nTypes == K, .(Hmisc::wtd.var(w, pk), Hmisc::wtd.mean(w, pk)), by = .(type, d)][
   , .(mean(V1), var(V2)), by = d][, .(unexVar = mean(V1), muVar = mean(V2))]
 
 bigDt[nTypes == K & type == 1, mean(w), by = d][, .(dVar = var(V1))]
@@ -571,7 +637,7 @@ bigDt[nTypes == K & type == 1, mean(w), by = d][, .(dVar = var(V1))]
 bigDt[nTypes == K & type == 1, mean(w), by = d][, .(dVar = var(V1))] / 
   bigDt[nTypes == K & type == 1, var(w)]
 
-bigDt[nTypes == K, .(wtd.var(w, pk), wtd.mean(w, pk)), by = .(type, d)
+bigDt[nTypes == K, .(Hmisc::wtd.var(w, pk), Hmisc::wtd.mean(w, pk)), by = .(type, d)
       ][
   , .(mean(V1), var(V2)), by = d][, .(unexVar = mean(V1), muVar = mean(V2))] / 
   bigDt[nTypes == K & type == 1, var(w)]

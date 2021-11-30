@@ -356,6 +356,36 @@ ggplot() +
 
 saveFig("groupSizesPositionsK5.png")
 
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
+  ) +
+  geom_text_repel(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc-0.015,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", size = 5, x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", size = 5, x = 66, y = -0.01, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", size = 5, x = 47, y = -.28, label = "Type 1") +
+  annotate(geom = "label", size = 5, x = 47, y = 0.09, label = "Type 2") +
+  annotate(geom = "label", size = 5, x = 54, y = 0.3, label = "Type 3") +
+  annotate(geom = "label", size = 5, x = 67, y = 0.22, label = "Type 4") +
+  annotate(geom = "label", size = 5, x = 78, y = 0.43, label = "Type 5") +
+  scale_size_area(max_size = 20) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 25)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.45, .45)) +
+  guides(colour = "none", size = "none") +
+  labs(subtitle = "Female")
+
+saveFig("groupSizesPositionsK5_4slides.png")
+
 ```
 
 ```{r wp dists}
@@ -515,6 +545,41 @@ ggplot() +
   guides(colour = "none", size = "none") 
 
 saveFig("groupWagePremsPositionsK5.png")
+
+ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_TRUE),
+    shape = 1
+  ) +
+  geom_point(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = type, size = mu_FALSE)
+  ) +
+  geom_text(
+    data = dtWagePrem[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = type, label = ifelse(round(wagePrem, digits = 2) < 0.01, "<0.01", round(wagePrem, digits = 2))),
+    colour = "white", size = 5
+  ) +
+  # annotate(geom = "label", x = 65, y = 0.42, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  # annotate(geom = "label", x = 66, y = 0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 48, y = -.25, label = "Type 1", size = 5) +
+  annotate(geom = "label", x = 47, y = 0.09, label = "Type 2", size = 5) +
+  annotate(geom = "label", x = 55, y = 0.30, label = "Type 4", size = 5) +
+  annotate(geom = "label", x = 68, y = 0.24, label = "Type 3", size = 5) +
+  annotate(geom = "label", x = 78, y = 0.43, label = "Type 5", size = 5) +
+  scale_size_continuous(range = c(10,20)) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 25)) +
+  coord_cartesian(xlim = c(45, 80), ylim = c(-.35, .5)) +
+  guides(colour = "none", size = "none") +
+  labs(subtitle = "Female")
+
+saveFig("groupWagePremsPositionsK5_4slides.png")
 
 ggplot() +
   # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 

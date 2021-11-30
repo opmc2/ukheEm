@@ -298,6 +298,35 @@ ggplot() +
 saveFig("groupSizesPositionsK3.png")
 
 ggplot() +
+  # geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
+  geom_point(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc, colour = d, size = P_k),
+    shape = 1
+  ) +
+  geom_text(
+    data = dtMuByD[nTypes == K],
+    mapping = aes(x = alphaC, y = alphaNc,
+                  colour = d, label = ifelse(round(P_k, digits = 2) < 0.01, "<0.01", round(P_k, digits = 2)))
+  ) +
+  annotate(geom = "label", x = 63, y = 0.16, label = "Graduates (d = 1)", colour = "#00BFC4") +
+  annotate(geom = "label", x = 63, y = -0.06, label = "Non-graduates (d = 0)", colour = "#F8766D") +
+  annotate(geom = "label", x = 44, y = 0.35, label = "Type 1") +
+  annotate(geom = "label", x = 61, y = 0.35, label = "Type 2") +
+  annotate(geom = "label", x = 78, y = 0.35, label = "Type 3") +
+  # annotate(geom = "label", x = 76, y = 0.31, label = "Type 4") +
+  scale_size_area(max_size = 20) +
+  scale_x_continuous(name = "Cognitive") +
+  scale_y_continuous(name = "Noncognitive") +
+  theme_bw() +
+  theme(text = element_text(size = 25)) +
+  coord_cartesian(xlim = c(35, 80), ylim = c(-.1, .4)) +
+  guides(colour = "none", size = "none") +
+  labs(subtitle = "Male")
+
+saveFig("groupSizesPositionsK3_4slides.png")
+
+ggplot() +
   geom_point(data = dtMeasures, mapping = aes(x = cog, y = noncog, colour = d), alpha = .5) + 
   theme_classic()
 
