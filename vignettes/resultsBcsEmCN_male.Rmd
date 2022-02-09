@@ -220,18 +220,33 @@ The groups sizes are reasonable, and the algorithm sorts strongly on ability.
 
 ```{r groups size and means}
 
-dtPk <- bigDt[, .(
+dtPkzd <- bigDt[, .(
+  pkzd = sum(pk) / NN
+), by = .(nTypes, type, z, d)]
+
+dtPkByD <- bigDt[, .(
   P_k = sum(pk) / .N,
   alpha1d = Hmisc::wtd.mean(y1, pk),
   alpha2d = Hmisc::wtd.mean(y2, pk),
-  muD = Hmisc::wtd.mean(w, pk)
+  muD = Hmisc::wtd.mean(w, pk),
+  sigmaD = sqrt(Hmisc::wtd.var(w, pk))
 ), by = .(nTypes, type, d)]
 
-dtPk[, `:=`(
-  alpha1 = Hmisc::wtd.mean(alpha1d, P_k),
-  alpha2 = Hmisc::wtd.mean(alpha2d, P_k),
-  muCons = Hmisc::wtd.mean(muD, P_k)
+dtPk <- bigDt[, .(
+  alpha1 = Hmisc::wtd.mean(y1, pk),
+  omega1 = sqrt(Hmisc::wtd.var(y1, pk)),
+  alpha2 = Hmisc::wtd.mean(y2, pk),
+  omega2 = sqrt(Hmisc::wtd.var(y2, pk)),
+  muCons = Hmisc::wtd.mean(w, pk)
 ), by = .(nTypes, type)]
+
+dtSigmaW <- bigDt[, .(sigmaW = sqrt(sum(pk * (w - mu)^2) / sum(pk))), by = .(nTypes, d)]
+
+dtPkzd <- bigDt[, .(
+    pkzd = sum(pk) / NN
+  ), by = .(nTypes, type, z, d)]
+
+dtPkzdK5 <- dcast(dtPkzd[nTypes == 5], z ~ type + d, value.var = "pkzd")
 
 dtPk[, alpha1Norm := (alpha1 - mean(alpha1, na.rm = TRUE)) / sd(alpha1, na.rm = TRUE)]
 dtPk[, alpha2Norm := (alpha2 - mean(alpha2, na.rm = TRUE)) / sd(alpha2, na.rm = TRUE)]
