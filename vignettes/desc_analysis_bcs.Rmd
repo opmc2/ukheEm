@@ -23,6 +23,8 @@ signiff <- function(x, ...) if (is.numeric(x)) signif(x, digits = 3)
 library(ggplot2)
 library(magrittr)
 library(MASS)
+library(nnet)
+library(AER)
 ```
 
 ## Summary statistics
@@ -56,7 +58,14 @@ dtBcs <- merge(
   dtBcsWorkerFirm, 
   by = "bcsid"
 ) %>% 
-  merge(bcs70$bcs1986x[, .(bcsid, ethnicGroup = c6.14, townCity = c6.13)], 
+  merge(bcs70$bcs1986x[, .(
+    bcsid, ethnicGroup = c6.14, townCity = c6.13, 
+    oldSibling = fcase(
+     c6.3a == "0" & c6.4a == "0", FALSE,
+     c6.3a %in% c("1", "2", "3", "4", "More than 4") | 
+       c6.4a %in% c("1", "2", "3", "4", "More than 4"), TRUE
+    )
+  )], 
         by = "bcsid") %>%
   merge(bcs70$bcs1986derived[, .(bcsid = BCSID, region = BD4GOR, 
                                  schlType = BD4STYPE, socClass = BD4PSOC)],
@@ -132,6 +141,8 @@ dtBcs[, soc9 := substr(soc, 1, 1)][, soc4 := fcase(
   soc9 %in% c("4", "6", "7", "8"), "LowerSuperv",
   soc9 == "9", "Semi-routine"
 )]
+
+NN <- dtBcs[, .N]
 
 dtBcs[, .N / NN, by = soc4]
 
@@ -217,9 +228,23 @@ ivCN_f <- dtBcs[sex.y == "Female", AER::ivreg(
   logWkPay ~ degree.x + cogScore + noncogScore | c5e7 + cogScore + noncogScore
 )]
 
-stargazer::stargazer(nocontrols_m, cog_m, cognoncog_m, allcontrols_m,
-                     nocontrols_f, cog_f, cognoncog_f, allcontrols_f,
-                     omit = c("parInc", "townCity",  "region", "white"))
+ivAllcontrols_m <- dtBcs[sex.y == "Male", AER::ivreg(
+  logWkPay ~ degree.x + cogScore + noncogScore + parInc + townCity + region + 
+    white | c5e7 + cogScore + noncogScore + parInc + townCity + region + white
+)]
+
+ivAllcontrols_f <- dtBcs[sex.y == "Female", AER::ivreg(
+  logWkPay ~ degree.x + cogScore + noncogScore + parInc + townCity + region + 
+    white | c5e7 + cogScore + noncogScore + parInc + townCity + region + white
+)]
+
+stargazer::stargazer(nocontrols_m, cog_m, cognoncog_m, allcontrols_m, # iv_m, ivCN_m, ivAllcontrols_m,
+                     omit = c("parInc", "townCity",  "region", "white"),
+                     type = "text")
+
+stargazer::stargazer(nocontrols_f, cog_f, cognoncog_f, allcontrols_f, # iv_f, ivCN_f, ivAllcontrols_f,
+                     omit = c("parInc", "townCity",  "region", "white"),
+                     type = "text")
 
 ```
 
