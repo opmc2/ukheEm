@@ -144,10 +144,25 @@ progUkheEm_v4r <- function(
         .SD, Hmisc::wtd.mean, weights = pk
       ), by = .(type), .SDcols = paste0("y", 1:J)]
 
-      dtLong[, paste0("sigmaY", 1:J) := lapply(
-        .SD, wtd.sd, weights = pk
-      ), by = .(type), .SDcols = paste0("y", 1:J)]
-
+      if (J == 1) {
+        dtLong[, `:=` (
+          sigmaY1 = ifelse(is.na(wtd.sd(y1, pk)),
+                          sigmaY1,
+                          wtd.sd(y1, pk)))]
+      } else if (J == 2) {
+        dtLong[, `:=` (
+          sigmaY1 = ifelse(is.na(wtd.sd(y1, pk)),
+                           sigmaY1,
+                           wtd.sd(y1, pk)))]
+        dtLong[, `:=` (
+          sigmaY2 = ifelse(is.na(wtd.sd(y2, pk)),
+                           sigmaY2,
+                           wtd.sd(y2, pk)))]
+      } else {
+        dtLong[, paste0("sigmaY", 1:J) := lapply(
+          .SD, updateSigmaY, weights = pk
+        ), by = .(type), .SDcols = paste0("y", 1:J)]
+      }
     } else if (J > 1) {
       alphaSigmaRes <- list()
       for (k in 1:K) {
