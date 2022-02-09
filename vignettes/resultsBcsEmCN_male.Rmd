@@ -28,7 +28,7 @@ library(magrittr)
 # devtools::load_all()
 
 # functions
-signiff <- function(x, ...) if (is.numeric(x)) signif(x, digits = 3)
+signiff <- function(x, ...) ifelse(is.numeric(x), signif(x, digits = 3), x)
 saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = width, height = height)
 
 # options(scipen = 15)
@@ -261,7 +261,7 @@ ggplot(
   data = dtPk[nTypes %between% c(2, 7)],
   mapping = aes(x = type)
 ) +
-  geom_col(aes(y = P_k / 2, fill = d)) +
+  geom_col(aes(y = P_k / 3, fill = d)) +
   geom_line(
     aes(y = (value + 7)/4, linetype = variable, group = variable)
   ) +
@@ -442,10 +442,14 @@ stdise <- function(x) (x - mean(x)) / sd(x)
 dtMeasuresAll[, lCog := stdise(cog)]
 dtMeasuresAll[, lNoncog := stdise(noncog)]
 
-# correlation between wagePrem and cognitive / noncognitive ability
-lmWagePrem1 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + lNoncog -1)]
-lmWagePrem2 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + lNoncog + lCog:lNoncog-1)]
-lmWagePrem3 <- dtMeasuresAll[nTypes == 5, lm(wagePrem ~ lCog + I(lCog^2) + lNoncog + I(lNoncog^2) + lCog:lNoncog-1)]
+```
+
+### correlation between wagePrem and cognitive / noncognitive ability
+
+```{r correlation between wagePrem and cognitive / noncognitive ability}
+lmWagePrem1 <- dtMeasuresAll[nTypes == 8, lm(wagePrem ~ lCog + lNoncog)]
+lmWagePrem2 <- dtMeasuresAll[nTypes == 8, lm(wagePrem ~ lCog + lNoncog + lCog:lNoncog)]
+lmWagePrem3 <- dtMeasuresAll[nTypes == 8, lm(wagePrem ~ lCog + I(lCog^2) + lNoncog + I(lNoncog^2) + lCog:lNoncog)]
 
 stargazer::stargazer(lmWagePrem1, lmWagePrem2, lmWagePrem3, type = "text")
 ```
@@ -1067,6 +1071,17 @@ bigDt[, maxPk := max(pk), by = .(nTypes, id)]
 
 dtAssignedTypes <- bigDt[pk == maxPk, ]
 
+```
+
+### Table 7: correlations using assigned types
+
+```{r assigned types correlations}
+
+lmWagePrem1AT <- dtAssignedTypes[nTypes == 5, lm(muD1 - muD0 ~ alpha1 + alpha2 -1)]
+lmWagePrem2AT <- dtAssignedTypes[nTypes == 5, lm(muD1 - muD0 ~ alpha1 + alpha2 + alpha1:alpha2-1)]
+lmWagePrem3AT <- dtAssignedTypes[nTypes == 5, lm(muD1 - muD0 ~ alpha1 + I(alpha1^2) + alpha2 + I(alpha2^2) + alpha1:alpha2-1)]
+
+stargazer::stargazer(lmWagePrem1AT, lmWagePrem2AT, lmWagePrem3AT, type = "text")
 ```
 
 ### Assigned groups: means and sizes
