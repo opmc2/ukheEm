@@ -1,0 +1,45 @@
+---
+title: "simulations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{simulations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette describes and performs simulations which I might include in the UK HE returns paper.
+
+```{r setup}
+
+# devtools::load_all()
+load("~/Dropbox/work/myRpkgs/ukheEm/data/resultsVersionPaper/resBcsCogNoncog_male.rda")
+
+```
+
+# Comparing additive and non-linear models
+
+Simulate using estimated parameters from cognitive and non-cognitive model with five types, on males.
+
+## Linear model
+
+```{r simulate data linear model}
+
+dtLong <- resBcsCogNoncog_male[[5]]$dtLong
+
+# parameters:
+mu <- dtLong[, .(mu = unique(mu)), by = .(type, d)]
+
+N <- 1000
+
+dtSim <- data.table(
+  id = 1:N,
+  cogHC = rnorm(N), noncogHC = rnorm(N)
+)
+
+dtSim[, `:=` (
+  Mc = cogHC + rnorm(N, sd = .1),
+  Mn = noncogHC + rnorm(N, sd = .1),
+  w0 = mu0 + mu0C * cogHC + mu0N * noncogHC + rnorm(N, sd = .2),
+  w1 = mu1 + mu1C * cogHC + mu1N * noncogHC + rnorm(N, sd = .1)
+)]
+```

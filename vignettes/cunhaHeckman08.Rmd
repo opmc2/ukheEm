@@ -1,0 +1,147 @@
+---
+title: "Estimating my model using Cunha and Heckman (2008)'s method on BCS data"
+output: rmarkdown::html_vignette
+bibliography: ukhe.bib
+vignette: >
+  %\VignetteIndexEntry{cunhaHeckman08}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+# devtools::load_all()
+```
+
+This notebook describes and estimates the model in my paper of the returns to a university degree using the method described and demonstrated in @cunha_formulating_2008. 
+
+# The model setup 
+
+## Wages
+
+(Log)-wages at 25 depend on cognitive and non-cognitive skills.
+
+$$
+\ln{Y_d} = y_d = \mu_d + \delta_d^C \theta^C + \delta_d^N \theta^N + \varepsilon_d, \,\, \forall d \in \{0,1\}.
+$$
+
+## Measurements (of cognitive and non-cognitive skills)
+
+We have access to (at least two) noisy measurements of each type of skill. These depend on the skills they measure as follows:
+
+$$
+M^k_j = \mu_j^k + \alpha_j^k \theta^k + \varepsilon_j^k, \,\, \forall k \in \{C,N\}; \forall j \in \{1,..., m_k\},
+$$
+where $m_k$ is the number of measurements available for $\theta^k$. We also denote $\text{Var}(\varepsilon_j^k) = \sigma^2_{kj}$
+
+## Assumptions
+
+We will assume for simplicity that $m_C = m_N = 2$.
+
+1) $\varepsilon_j^k$ is mean zero and independent across agents (young people), for $j \in \{1,2\}$, $k \in \{C,N\}$.
+
+2) $\varepsilon_j^k$ is mean zero and independent of $(\theta^C, \theta^N)$, for $j \in \{1,2\}$, $k \in \{C,N\}$. [I can and do relax this assumption in my method].
+
+3) $\varepsilon_j^k$ is mean zero and independent from $\varepsilon_i^{\ell}$ for $i,j \in \{1,2\}$ and $i \neq j$ for $k=\ell$; otherwise $\varepsilon_j^k$ is mean zero and independent from $\varepsilon_i^{\ell}$ for $i,j \in \{1,2\}$, $k \neq \ell$, $k, l \in \{C,N\}$.
+
+## Identifying the key parameters: factor loadings and covariances
+
+This is where we start to depart slightly from the setup in @cunha_formulating_2008. They are concerned with estimating the production function of human capital during childhood (equations not produced here) and the distributions of skills ($\theta^k$) and the accuracy of measurements ($\alpha_j^k$). They use adults outcomes chiefly to "anchor" their measures of human capital into an interpretable metric (i.e. wages). Therefore, they have multiple time periods and human capital which evolves over these periods along with (parental) investments in a child's HC. 
+
+Our focus is on estimating the wage returns to university as a function of prior human capital, and hence we are interested in estimating all of the parameters in the above equations, though in particular $\delta_d^k$. We will use covariances between observed variables ($Y$ and $M$) to identify covariances between unobserved variables and parameters or "factor loadings" ($\alpha$ and $\delta$). This requires some normalisations. @cunha_formulating_2008 set $\alpha^k_{1,t} = 1$ in all periods. We only have one period ($\alpha^k_1 = 1$), which should be enough if we also use cross-ability covariances.
+
+We then have the following equations (with the left-hand sides observable):
+\begin{align}
+\text{Var}(M_1^k) &= \text{Var}(\theta^k) + \sigma^2_{k1} \text{ as } \alpha^k_1 = 1 \\
+\text{Cov}(M_1^k,M_2^k) &= \alpha^k_2 \text{Var}(\theta^k) \text{ as } \alpha^k_1 = 1 \\
+\text{Var}(M_j^k) &= (\alpha^k_j)^2 \, \text{Var}(\theta^k) + \sigma^2_{kj} \\
+\text{Cov}(M_1^C, M_1^N) &= \text{Cov}(\theta^C, \theta^N)  \\
+\text{Cov}(M_2^C, M_1^N) &= \alpha_2^C\text{Cov}(\theta^C, \theta^N) \\
+\text{Cov}(M_1^C, M_2^N) &= \alpha_2^N\text{Cov}(\theta^C, \theta^N)
+\end{align}
+which we can rearrange / solve for the unknown parameters and covariances.
+
+- $\alpha_2^C = \frac{\text{Cov}(M_2^C, M_1^N)}{\text{Cov}(M_1^C, M_1^N)}$
+- $\alpha_2^N = \frac{\text{Cov}(M_1^C, M_2^N)}{\text{Cov}(M_1^C, M_1^N)}$,
+
+armed with these factor loadings we can find:
+
+- $\text{Var}(\theta^k) = \frac{1}{\alpha_2^k}\text{Cov}(M_2^k, M_1^k)$
+
+and finally:
+
+- $\sigma^2_{kj} = \text{Var}(M_j^k) - (\alpha^k_j)^2 \, \text{Var}(\theta^k)$.
+
+We can now use the covariance of wages with measurements to identify ($\delta_d^c, \delta_d^c$), which appear as the two unknowns in the following two equations:
+
+1. $\text{Cov}(y_d, M_1^C) = \delta_d^C \text{Var}(\theta^C) + \delta_d^{N}\text{Cov}(\theta^C, \theta^{N})$
+2. $\text{Cov}(y_d, M_1^N) = \delta_d^C \text{Cov}(\theta^C, \theta^{N}) + \delta_d^{N}\text{Var}(\theta^N)$
+
+Solving this system of equations gives:
+
+$$
+\begin{pmatrix}\delta^C_d \\ \delta^N_d \end{pmatrix} = \frac{1}{\text{Var}(\theta^C)\text{Var}(\theta^N)-\text{Cov}(\theta^C, \theta^{N})^2} \begin{bmatrix} \text{Var}(\theta^C) & -\text{Cov}(\theta^C, \theta^{N}) \\ -\text{Cov}(\theta^C, \theta^{N}) & \text{Var}(\theta^N) \end{bmatrix} \begin{pmatrix} \text{Cov}(y_d, M_1^C) \\ \text{Cov}(y_d, M_1^N) \end{pmatrix}
+$$
+
+# Estimation
+
+Now we turn to estimating these parameters using the above equations on data from the 1970 British Cohort Study (BCS70). We will estimate the parameters for males and females separately.
+
+## Measurements and wages in BCS70
+
+We will use the following correspondance between variables from `dtBcs4Em` and those in the above equations to estimate the parameters:
+
+- $M_1^C =$ `readScore` (a standardised reading test score taken at age sixteen)
+- $M_2^C =$ `mathScore` (a standardised maths test score taken at age sixteen)
+- $M_1^N =$ `selfEsteemScore` (a measure of self-esteem at age sixteen)
+- $M_2^N =$ `locScore` (a measure of locus-of-control at age sixteen)
+- $y_d =$ `logWkPay` (the log of weekly wages at age 26 among those with education $d$, where $d=1$ is a graduate, $d=0$ a non-graduate) 
+
+## Males in the BCS70
+
+```{r estimate male bcs70, eval = FALSE}
+
+dtBcsMale <- dtBcs4Em[
+  sex == 1 & !is.na(readScore) & !is.na(mathScore) & !is.na(noncogScore) & 
+    !is.na(wkPay),
+  .(bcsid, m1c = readScore, m2c =mathScore, m1n = selfEsteemScore, 
+    m2n = locScore, y = logWkPay, degree)
+]
+
+# factor loadings
+alpha2C <- dtBcsMale[, cov(m2c, m1n)/cov(m1c, m1n)]
+alpha2N <- dtBcsMale[, cov(m1c, m2n)/cov(m1c, m1n)]
+
+# variance and covariance of human capital (theta)
+SigmaC <- sqrt(dtBcsMale[, cov(m1c, m2c)] / alpha2C)
+SigmaN <- sqrt(dtBcsMale[, cov(m1n, m2n)] / alpha2N)
+SigmaCN <- dtBcsMale[, cov(m1c, m1n)]
+
+# variance of errors (epsilon)
+sig1c <- sqrt(dtBcsMale[, var(m1c)] - SigmaC)
+sig2c <- sqrt(dtBcsMale[, var(m2c)] - alpha2C^2 * SigmaC)
+sig1n <- sqrt(dtBcsMale[, var(m1n)] - SigmaN)
+sig2n <- sqrt(dtBcsMale[, var(m2n)] - alpha2N^2 * SigmaN)
+
+# wage parameters (delta)
+delta1 <- matrix(c(SigmaN^2, -SigmaCN, -SigmaCN, SigmaC^2), nrow = 2) %*% 
+  matrix(c(
+    dtBcsMale[degree == TRUE, cov(y, m1c)], 
+    dtBcsMale[degree == TRUE, cov(y, m1n)]
+  ), nrow = 2) / (SigmaC^2 * SigmaN^2 - SigmaCN^2)
+
+delta0 <- matrix(c(SigmaN^2, -SigmaCN, -SigmaCN, SigmaC^2), nrow = 2) %*% 
+  matrix(c(
+    dtBcsMale[degree == FALSE, cov(y, m1c)], 
+    dtBcsMale[degree == FALSE, cov(y, m1n)]
+  ), nrow = 2) / (SigmaC^2 * SigmaN^2 - SigmaCN^2)
+```
+
+# References
