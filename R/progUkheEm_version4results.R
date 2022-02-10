@@ -327,8 +327,8 @@ progUkheEm_v4r <- function(
       ), by = .(type, d, z)]
     }
 
-    listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
-    listLoglike[[iter]] <- dtLong[type == "1", sum(log(likelihood))]
+    listLike[[iter]] <- dtLong[type == "1", prod(likelihood^bsWeight)]
+    listLoglike[[iter]] <- dtLong[type == "1", sum(bsWeight * log(likelihood))]
 
     if (iter > 1) {
       delta <- listLoglike[[iter]] - listLoglike[[iter-1]]
@@ -341,7 +341,7 @@ progUkheEm_v4r <- function(
     dtLong[, pk := likelihoodK / likelihood]
     if (anyNA(dtLong$pk)) {
       dtLong[is.na(pk), pk := .Machine$double.eps]
-      print("Some pk were NaN. Replaced by zero.")
+      print("Some pk were NaN. Replaced by machine double eps")
     }
 
     # update pk to include weights
