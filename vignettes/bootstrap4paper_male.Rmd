@@ -1,0 +1,147 @@
+---
+title: "bootstrap4paper"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{bootstrap4paper}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(ukheEm)
+library(ggplot2)
+library(ggrepel)
+library(here)
+library(magrittr)
+
+# devtools::load_all()
+
+# functions
+signiff <- function(x, ...) ifelse(is.numeric(x), signif(x, digits = 3), x)
+saveFig <- function(x, width = 10, height = 6) ggsave(here(figDir, x), width = width, height = height)
+
+# options(scipen = 15)
+
+# directories
+figDir <- "vignettes/fig/bootstrap_male"
+dir.create(here(figDir))
+
+```
+
+
+```{r bigDt}
+
+bigDt <- list()
+for (f in 1:5) {
+  resBs <- readRDS(here(paste0("data/resBcsBsCN_maleK5_FSsvBsW_", f, ".rds")))
+  for (bs in 1:100) {
+    tempDt <- resBs[[bs]]$dtLong
+    bigDt[[(f-1)*100 + bs]] <- tempDt[, bsSample := (f-1)*100 + bs]
+  }
+}
+
+bigDt <- rbindlist(bigDt)
+
+NN <- bigDt[type == 1 & bsSample == 1, .N]
+
+```
+
+## Sizes (and means of measures and wages) of groups
+
+```{r groups size and means}
+
+dtPkzd <- bigDt[, .(
+  pkzd = sum(pk) / NN
+), by = .(bsSample, type, z, d)]
+
+dtPkByD <- bigDt[, .(
+  P_k = sum(pk) / .N,
+  alpha1d = Hmisc::wtd.mean(y1, pk),
+  alpha2d = Hmisc::wtd.mean(y2, pk),
+  muD = Hmisc::wtd.mean(w, pk),
+  muD2 = mean(mu),
+  sigmaD = sqrt(Hmisc::wtd.var(w, pk, na.rm = TRUE))
+), by = .(bsSample, type, d)]
+
+dtWp <- dcast(
+  dtPkByD, formula = bsSample + type ~ d, 
+  value.var = c("alpha1d", "alpha2d", "muD")
+)
+
+dtWp[, cp := alpha1d_TRUE - alpha1d_FALSE]
+dtWp[, ncp := alpha2d_TRUE - alpha2d_FALSE]
+dtWp[, wp := muD_TRUE - muD_FALSE]
+
+ggplot(data = dtWp) +
+  geom_density(aes(x = muD_FALSE, colour = "No degree")) +
+  # geom_density(aes(x = muD_TRUE, colour = "Degree")) +
+  facet_wrap(vars(type), scales = "free")
+
+ggplot(data = dtWp) +
+  # geom_density(aes(x = muD_FALSE, colour = "No degree")) +
+  geom_density(aes(x = muD_TRUE, colour = "Degree")) +
+  facet_wrap(vars(type), scales = "free")
+
+dtWp_bs <- dtWp[, .(
+  cp = mean(cp, na.rm = TRUE), 
+  cp05 = quantile(cp, probs = .05, na.rm = TRUE), 
+  cp95 = quantile(cp, probs = .95, na.rm = TRUE),
+  ncp = mean(ncp, na.rm = TRUE), 
+  ncp05 = quantile(ncp, probs = .05, na.rm = TRUE), 
+  ncp95 = quantile(ncp, probs = .95, na.rm = TRUE),
+  wp = mean(wp, na.rm = TRUE), 
+  wp05 = quantile(wp, probs = .05, na.rm = TRUE), 
+  wp95 = quantile(wp, probs = .95, na.rm = TRUE)
+), by = type]
+
+dtPk <- bigDt[, .(
+  Pk = sum(pk) / 745,
+  alpha1 = Hmisc::wtd.mean(y1, pk),
+  omega1 = sqrt(Hmisc::wtd.var(y1, pk)),
+  alpha2 = Hmisc::wtd.mean(y2, pk),
+  omega2 = sqrt(Hmisc::wtd.var(y2, pk)),
+  muCons = Hmisc::wtd.mean(w, pk)
+), by = .(bsSample, type)]
+
+dtSigmaW <- bigDt[, .(sigmaW = sqrt(sum(pk * (w - mu)^2) / sum(pk))), by = .(bsSample, d)]
+
+dtPkzd <- bigDt[, .(
+    pkzd = sum(pk) / NN
+  ), by = .(bsSample, type, z, d)]
+
+dtPk[, alpha1Norm := (alpha1 - mean(alpha1, na.rm = TRUE)) / sd(alpha1, na.rm = TRUE)]
+dtPk[, alpha2Norm := (alpha2 - mean(alpha2, na.rm = TRUE)) / sd(alpha2, na.rm = TRUE)]
+dtPk[, muConsNorm := (muCons - mean(muCons, na.rm = TRUE)) / sd(muCons, na.rm = TRUE)]
+
+dtPk_bs <- dtPk[, .(
+  Pk = mean(Pk), 
+  Pk05 = quantile(Pk, probs = .05), Pk95 = quantile(Pk, probs = .95),
+  alpha1Norm = mean(alpha1Norm), alpha2Norm = mean(alpha2Norm), muConsNorm = mean(muConsNorm),
+  alpha1Norm05 = quantile(alpha1Norm, probs = .05), alpha1Norm95 = quantile(alpha1Norm, probs = .95),
+  alpha2Norm05 = quantile(alpha2Norm, probs = .05), alpha2Norm95 = quantile(alpha2Norm, probs = .95),
+  muConsNorm05 = quantile(muConsNorm, probs = .05), muConsNorm95 = quantile(muConsNorm, probs = .95)
+), by = type]
+
+ggplot(
+  data = dtPk_bs,
+  mapping = aes(x = type)
+) +
+  geom_col(aes(y = Pk)) + geom_errorbar(aes(ymin = Pk05, ymax = Pk95), width = .1) +
+  # geom_pointrange(aes(y = alpha1Norm +1.6, ymin = alpha1Norm05+1.6, ymax = alpha1Norm95+1.6, colour = "Cog")) +
+  # geom_pointrange(aes(y = alpha2Norm +1.6, ymin = alpha2Norm05+1.6, ymax = alpha2Norm95+1.6, colour = "Noncog")) +
+  # geom_pointrange(aes(y = muConsNorm +1.6, ymin = muConsNorm05+1.6, ymax = muConsNorm95+1.6, colour = "Wage")) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("groupSizesMeans.png")
+
+```
+
+
