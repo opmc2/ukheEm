@@ -91,27 +91,27 @@ progUkheEm_v4r <- function(
 
   # set start values
   if (startVals == "kmeans") {
-      startVals <- kmeansSVs(dt[, ..outcomes], K, y1cont = y1cont, J = J)
+    startVals <- kmeansSVs(dt[, ..outcomes], K, y1cont = y1cont, J = J)
 
-      dt[, svType := startVals$svTypes]
+    dt[, svType := startVals$svTypes]
 
-      alpha <- startVals$alpha
-      if (J == 2) sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
+    alpha <- startVals$alpha
+    if (J == 2) sigmaY <- as.matrix(startVals$sigmaY[order(svType)][, .(y1, y2)])
 
-      # make dt long by types
-      dtLong <- list()
-      for (k in 1:K) {
-        dtLong[[k]] <- data.table(dt, type = as.character(k))
-      }
-      dtLong <- rbindlist(dtLong)
+    # make dt long by types
+    dtLong <- list()
+    for (k in 1:K) {
+      dtLong[[k]] <- data.table(dt, type = as.character(k))
+    }
+    dtLong <- rbindlist(dtLong)
 
-      dtLong[, pk := fcase(type == as.character(svType), .9,
-                           default = .1 / (K-1))]
+    dtLong[, pk := fcase(type == as.character(svType), .9,
+                         default = .1 / (K-1))]
 
   } else if (startVals == "dt") {
-    dtLong <- dt
+    dt_long <- dt
     # update pk to include weights
-    if (isTRUE(bsWeights)) dtLong[, pk := pk * bsWeight]
+    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
   } else {
     print("Error: Unknown starting values.")
     stop()
@@ -144,25 +144,10 @@ progUkheEm_v4r <- function(
         .SD, Hmisc::wtd.mean, weights = pk
       ), by = .(type), .SDcols = paste0("y", 1:J)]
 
-      if (J == 1) {
-        dtLong[, `:=` (
-          sigmaY1 = ifelse(is.na(wtd.sd(y1, pk)),
-                          sigmaY1,
-                          wtd.sd(y1, pk)))]
-      } else if (J == 2) {
-        dtLong[, `:=` (
-          sigmaY1 = ifelse(is.na(wtd.sd(y1, pk)),
-                           sigmaY1,
-                           wtd.sd(y1, pk)))]
-        dtLong[, `:=` (
-          sigmaY2 = ifelse(is.na(wtd.sd(y2, pk)),
-                           sigmaY2,
-                           wtd.sd(y2, pk)))]
-      } else {
-        dtLong[, paste0("sigmaY", 1:J) := lapply(
-          .SD, updateSigmaY, weights = pk
-        ), by = .(type), .SDcols = paste0("y", 1:J)]
-      }
+      dtLong[, paste0("sigmaY", 1:J) := lapply(
+        .SD, wtd.sd, weights = pk
+      ), by = .(type), .SDcols = paste0("y", 1:J)]
+
     } else if (J > 1) {
       alphaSigmaRes <- list()
       for (k in 1:K) {
@@ -201,25 +186,14 @@ progUkheEm_v4r <- function(
 
     # update mu and sigmaW (parameters of the wage dist. @25)
 
-    dtLong[, `:=` (
-      mu = ifelse(is.na(Hmisc::wtd.mean(w, pk)),
+    dtLong[, c("mu", "sigmaW") := .(
+      ifelse(is.na(Hmisc::wtd.mean(w, pk)),
              mu,
-             Hmisc::wtd.mean(w, pk))),
-      # sigmaW = ifelse(is.na(wtd.sd(w, pk)),
-      #        sigmaW,
-      #        sqrt(Hmisc::wtd.var(w, pk)))),
-      by = .(type, d)]
-
-    dtLong[, `:=` (
-      # mu = ifelse(is.na(Hmisc::wtd.mean(w, pk)),
-      #             mu,
-      #             Hmisc::wtd.mean(w, pk))),
-      sigmaW = ifelse(is.na(wtd.sd(w - mu, pk)),
+             Hmisc::wtd.mean(w, pk)),
+      ifelse(is.na(wtd.sd(w, pk)),
              sigmaW,
-             sqrt(wtd.sd(w - mu, pk)))),
-      by = .(d)]
-
-
+             sqrt(Hmisc::wtd.mean(w, pk)))),
+      by = .(type, d)]
 
 
 
@@ -327,8 +301,8 @@ progUkheEm_v4r <- function(
       ), by = .(type, d, z)]
     }
 
-    listLike[[iter]] <- dtLong[type == "1", prod(likelihood^bsWeight)]
-    listLoglike[[iter]] <- dtLong[type == "1", sum(bsWeight * log(likelihood))]
+    listLike[[iter]] <- dtLong[type == "1", prod(likelihood)]
+    listLoglike[[iter]] <- dtLong[type == "1", sum(log(likelihood))]
 
     if (iter > 1) {
       delta <- listLoglike[[iter]] - listLoglike[[iter-1]]
@@ -340,12 +314,12 @@ progUkheEm_v4r <- function(
     # update pk
     dtLong[, pk := likelihoodK / likelihood]
     if (anyNA(dtLong$pk)) {
-      dtLong[is.na(pk), pk := .Machine$double.eps]
-      print("Some pk were NaN. Replaced by machine double eps")
+      dtLong[is.na(pk), pk := 0]
+      print("Some pk were NaN. Replaced by zero.")
     }
 
     # update pk to include weights
-    if (isTRUE(bsWeights)) dtLong[, pk := pk * bsWeight]
+    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
 
     # increase iter by 1
     iter <- iter + 1
