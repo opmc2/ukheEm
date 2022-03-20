@@ -354,8 +354,8 @@ ggplot() +
   annotate(geom = "label", x = 66, y = -0.01, label = "Non-graduates (d = 0)", colour = "#F8766D") +
   annotate(geom = "label", x = 47, y = -.28, label = "Type 1") +
   annotate(geom = "label", x = 47, y = 0.09, label = "Type 2") +
-  annotate(geom = "label", x = 54, y = 0.3, label = "Type 3") +
-  annotate(geom = "label", x = 67, y = 0.22, label = "Type 4") +
+  annotate(geom = "label", x = 54, y = 0.3, label = "Type 4") +
+  annotate(geom = "label", x = 67, y = 0.22, label = "Type 3") +
   annotate(geom = "label", x = 78, y = 0.43, label = "Type 5") +
   scale_size_area(max_size = 20) +
   scale_x_continuous(name = "Cognitive") +
@@ -383,8 +383,8 @@ ggplot() +
   annotate(geom = "label", size = 5, x = 66, y = -0.01, label = "Non-graduates (d = 0)", colour = "#F8766D") +
   annotate(geom = "label", size = 5, x = 47, y = -.28, label = "Type 1") +
   annotate(geom = "label", size = 5, x = 47, y = 0.09, label = "Type 2") +
-  annotate(geom = "label", size = 5, x = 54, y = 0.3, label = "Type 3") +
-  annotate(geom = "label", size = 5, x = 67, y = 0.22, label = "Type 4") +
+  annotate(geom = "label", size = 5, x = 54, y = 0.3, label = "Type 4") +
+  annotate(geom = "label", size = 5, x = 67, y = 0.22, label = "Type 3") +
   annotate(geom = "label", size = 5, x = 78, y = 0.43, label = "Type 5") +
   scale_size_area(max_size = 20) +
   scale_x_continuous(name = "Cognitive") +
@@ -396,6 +396,20 @@ ggplot() +
   labs(subtitle = "Female")
 
 saveFig("groupSizesPositionsK5_4slides.png")
+
+```
+
+## Group sizes by education
+
+```{r group sizes table}
+
+bigDt[nTypes == 5, sum(pk * d) / sum(pk), by = type]
+
+bigDt[nTypes == 5, wtd.sd(exp(w), pk), by = .(type, d)]
+bigDt[nTypes == 5, exp(Hmisc::wtd.mean(w, pk)), by = type]
+
+bigDt[nTypes == 5, sum(pk), by = .(type, d)]
+
 
 ```
 

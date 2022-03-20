@@ -404,6 +404,20 @@ saveFig("groupSizesPositionsK5_4slides.png")
 
 ```
 
+## Group sizes by education
+
+```{r group sizes table}
+
+bigDt[nTypes == 5, round(sum(pk * d) / sum(pk), digits = 2), by = type]
+
+bigDt[nTypes == 5, wtd.sd(exp(w), pk), by = .(type, d)]
+bigDt[nTypes == 5, exp(Hmisc::wtd.mean(w, pk)), by = type]
+
+bigDt[nTypes == 5, round(sum(pk) / NN, digits = 2), by = .(type, d)]
+
+
+```
+
 ```{r wp dists}
 
 ggplot() +
