@@ -28,7 +28,7 @@ for (iter in 1:5) {
   bsW <- igraph::sample_dirichlet(100, rep(1, 1131))*1131
   for (bs in 1:100) {
     print(paste0("Bootstrap number: ", bs))
-    dtBcs4Bs[, bsWeight := rep(bsW[, bs], 5)]
+    dtBcs4Bs$bsWeight <- rep(bsW[, bs], 5)
 
     resBcsBs[[bs]] <- try(progUkheEm_v4r(
       dt = dtBcs4Bs,
