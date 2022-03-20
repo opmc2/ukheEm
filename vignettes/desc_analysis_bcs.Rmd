@@ -118,7 +118,7 @@ dtBcsSumStats <- dtBcs[, .(
   "Leave home (matters somewhat)" = mean(c5e7 %in% c("Matters somewhat")),
   "Leave home (doesn't matter)" = mean(c5e7 %in% c("Doesn't matter")),
   .N
-)] %>%
+), by = .(sex.y)] %>%
   .[, names(.) := lapply(.SD, signiff),
              .SDcols = names(.)] %>%
   t() %>%
