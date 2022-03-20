@@ -29,9 +29,9 @@ for (K in 2:20) {
     maxiter = 400,
     y1cont = TRUE,
     y1log = FALSE,
-    J = 2 #, sigmaYconst = FALSE
+    J = 2
   )
 }
 
 
-usethis::use_data(resBcsCogNoncog_male, overwrite = TRUE)
+usethis::use_data(resBcsCogNoncog_maleV2, overwrite = TRUE)
