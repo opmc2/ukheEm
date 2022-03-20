@@ -109,9 +109,9 @@ progUkheEm_v4r <- function(
                          default = .1 / (K-1))]
 
   } else if (startVals == "dt") {
-    dt_long <- dt
+    dtLong <- dt
     # update pk to include weights
-    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
+    if (isTRUE(bsWeights)) dtLong[, pk := pk * bsWeight]
   } else {
     print("Error: Unknown starting values.")
     stop()
@@ -319,7 +319,7 @@ progUkheEm_v4r <- function(
     }
 
     # update pk to include weights
-    if (isTRUE(bsWeights)) dt_long[, pk := pk * bsWeight]
+    if (isTRUE(bsWeights)) dtLong[, pk := pk * bsWeight]
 
     # increase iter by 1
     iter <- iter + 1
