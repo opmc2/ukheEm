@@ -71,7 +71,7 @@ progUkheEm_v4r <- function(
 
   if (is.character(dt)) dt <- load(here::here(dt))
 
-  if (isFALSE(bsWeights)) {
+  if (startVals != "dt") {
     cols2keep <- varList
 
     dt <- dt[, ..cols2keep]
