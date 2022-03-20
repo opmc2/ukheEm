@@ -20,6 +20,7 @@ library(ggplot2)
 library(ggrepel)
 library(here)
 library(magrittr)
+library(data.table)
 
 # devtools::load_all()
 
@@ -72,7 +73,7 @@ dtPkByD <- bigDt[, .(
 
 dtWp <- dcast(
   dtPkByD, formula = bsSample + type ~ d, 
-  value.var = c("alpha1d", "alpha2d", "muD")
+  value.var = c("alpha1d", "alpha2d", "muD", "P_k")
 )
 
 dtWp[, cp := alpha1d_TRUE - alpha1d_FALSE]
@@ -96,13 +97,20 @@ dtWp_bs <- dtWp[, .(
   ncp = mean(ncp, na.rm = TRUE), 
   ncp05 = quantile(ncp, probs = .05, na.rm = TRUE), 
   ncp95 = quantile(ncp, probs = .95, na.rm = TRUE),
-  wp = mean(wp, na.rm = TRUE), 
+  wpbar = mean(wp, na.rm = TRUE), wp = median(wp, na.rm = TRUE),
   wp05 = quantile(wp, probs = .05, na.rm = TRUE), 
-  wp95 = quantile(wp, probs = .95, na.rm = TRUE)
+  wp95 = quantile(wp, probs = .95, na.rm = TRUE),
+  muFbar = mean(muD_FALSE, na.rm = TRUE), muF = median(muD_FALSE, na.rm = TRUE), 
+  muF05 = quantile(muD_FALSE, probs = .05, na.rm = TRUE), 
+  muF95 = quantile(muD_FALSE, probs = .95, na.rm = TRUE),
+  muTbar = mean(muD_TRUE, na.rm = TRUE), muT = median(muD_TRUE, na.rm = TRUE), 
+  muT05 = quantile(muD_TRUE, probs = .05, na.rm = TRUE), 
+  muT95 = quantile(muD_TRUE, probs = .95, na.rm = TRUE)
 ), by = type]
 
 dtPk <- bigDt[, .(
   Pk = sum(pk) / 745,
+  Pk_dT = sum(d * pk) / sum(d),
   alpha1 = Hmisc::wtd.mean(y1, pk),
   omega1 = sqrt(Hmisc::wtd.var(y1, pk)),
   alpha2 = Hmisc::wtd.mean(y2, pk),
@@ -123,10 +131,10 @@ dtPk[, muConsNorm := (muCons - mean(muCons, na.rm = TRUE)) / sd(muCons, na.rm = 
 dtPk_bs <- dtPk[, .(
   Pk = mean(Pk), 
   Pk05 = quantile(Pk, probs = .05), Pk95 = quantile(Pk, probs = .95),
-  alpha1Norm = mean(alpha1Norm), alpha2Norm = mean(alpha2Norm), muConsNorm = mean(muConsNorm),
+  alpha1Norm = mean(alpha1Norm), alpha2Norm = mean(alpha2Norm), muCons = mean(muCons),
   alpha1Norm05 = quantile(alpha1Norm, probs = .05), alpha1Norm95 = quantile(alpha1Norm, probs = .95),
   alpha2Norm05 = quantile(alpha2Norm, probs = .05), alpha2Norm95 = quantile(alpha2Norm, probs = .95),
-  muConsNorm05 = quantile(muConsNorm, probs = .05), muConsNorm95 = quantile(muConsNorm, probs = .95)
+  muCons05 = quantile(muCons, probs = .05), muCons95 = quantile(muCons, probs = .95)
 ), by = type]
 
 ggplot(
@@ -142,6 +150,92 @@ ggplot(
 
 saveFig("groupSizesMeans.png")
 
+
+ggplot(
+  data = dtPk_bs,
+  mapping = aes(x = type)
+) +
+  geom_pointrange(aes(y = exp(muCons), ymin = exp(muCons05), ymax = exp(muCons95), colour = "Wage")) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("plotMuCons.png")
+
+ggplot(
+  data = dtWp_bs,
+  mapping = aes(x = type)
+) +
+  geom_pointrange(aes(y = muF, ymin = muF05, ymax = muF95, colour = "Non-graduate")) +
+  geom_pointrange(aes(y = muT, ymin = muT05, ymax = muT95, colour = "Graduate")) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("plotMuD.png")
+
+ggplot(
+  data = dtWp_bs,
+  mapping = aes(x = type)
+) +
+  geom_col(aes(y = wp)) + 
+  geom_errorbar(aes(ymin = wp05, ymax = wp95), width = .1) +
+  theme_classic() +
+  theme(legend.position = "bottom", text = element_text(size = 15))
+
+saveFig("plotWp.png")
+
+
+dtWp[, .(
+  sdWp = sd(wp, na.rm = TRUE),
+  sdMuF = sd(exp(muD_FALSE), na.rm = TRUE),
+  sdMuT = sd(exp(muD_TRUE), na.rm = TRUE),
+  sdcF = sd(alpha1d_FALSE, na.rm = TRUE),
+  sdcT = sd(alpha1d_TRUE, na.rm = TRUE),
+  sdncF = sd(alpha2d_FALSE, na.rm = TRUE),
+  sdncT = sd(alpha2d_TRUE, na.rm = TRUE)
+), by = type]
+
+```
+
+## Aggregate results
+
+```{r agg res}
+
+dtWp <- merge(dtWp, dtPk[, .(bsSample, type, Pk_dT, Pk)], 
+              by = c("bsSample", "type"))
+
+dtTEs <- dtWp[, .(
+  ATE = sum(Pk * wp, na.rm = TRUE),
+  ATT = sum(Pk_dT * wp, na.rm = TRUE)
+), by = bsSample]
+
+# OLS estimates
+dtPkd <- bigDt[, .(P_kd = sum(pk) / NN), by = .(bsSample, type, d)]
+
+dtPkd[, Pk_d := P_kd / sum(P_kd), by = .(bsSample, d)]
+
+dtPkd <- dcast(
+  dtPkd, bsSample + type ~ d,
+  value.var = c("P_kd", "Pk_d")
+) %>% 
+  merge(
+    dtWp[, .(bsSample, type, muD_TRUE, muD_FALSE)]
+  )
+ 
+dtOls <- dtPkd[, .(Bols = sum((Pk_d_TRUE - Pk_d_FALSE) * muD_FALSE)), by = bsSample]
+dtPkd[, olsWeights := Pk_d_TRUE - Pk_d_FALSE]
+
+dtTEs <- merge(dtTEs, dtOls, by = "bsSample")
+
+dtTEs_bs <- dtTEs[, .(
+  ATEbar = mean(ATE), ATE = median(ATE), sdATE = sd(ATE),
+  ATTbar = mean(ATT), ATT = median(ATT), sdATT = sd(ATT),
+  OLSbar = mean(ATT + Bols), OLS = median(ATT + Bols), sdOLS = sd(ATT + Bols),
+  Bolsbar = mean(Bols), Bols = median(Bols), sdBols = sd(Bols)
+)]
+
+dtWeights <- dtPkd[, .(
+  olsWeight = mean(olsWeights), sdOlsWeight = sd(olsWeights)
+), by = type]
 ```
 
 
